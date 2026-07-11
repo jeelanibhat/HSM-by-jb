@@ -28,6 +28,20 @@ const envSchema = z.object({
 
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
+  /**
+   * Guest PII encryption (TDD §9). 32 bytes, base64.
+   *   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   *
+   * Losing this key means every stored ID number is unrecoverable. Rotating it
+   * requires re-encrypting the column — the ciphertext carries a version tag so
+   * that migration is possible.
+   */
+  PII_ENCRYPTION_KEY: z.string().min(44, 'PII_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
+
+  /** Separate key for the blind index. Sharing one key across two purposes is how
+   *  a weakness in one becomes a weakness in both. */
+  PII_HASH_KEY: z.string().min(44, 'PII_HASH_KEY must be at least 32 bytes, base64-encoded'),
+
   // TDD §5.3 — query hardening
   GRAPHQL_DEPTH_LIMIT: z.coerce.number().int().positive().default(8),
   GRAPHQL_INTROSPECTION: z.coerce.boolean().default(false),
@@ -78,6 +92,12 @@ export function validateEnv(raw: Record<string, unknown>): Env {
 
   // Dev-only secrets must never reach production.
   if (env.NODE_ENV === 'production') {
+    // Two identical PII keys means the blind index and the cipher share a secret.
+    // Cheap to check, catastrophic to get wrong.
+    if (env.PII_ENCRYPTION_KEY === env.PII_HASH_KEY) {
+      throw new Error('PII_ENCRYPTION_KEY and PII_HASH_KEY must be different keys.');
+    }
+
     for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
       if (env[key].includes('dev-only')) {
         throw new Error(`${key} still holds the development placeholder. Refusing to start.`);

@@ -73,6 +73,27 @@ infra/
   postgres/init/   extensions run at container init (btree_gist, pgcrypto, citext)
 ```
 
+## Outstanding: one contract migration
+
+`guests.id_number` (the old plaintext column) still exists, empty and unread.
+
+This release is the **expand** half of expand → migrate → contract (TDD §10: *"never
+destructive in one release"*). Dropping the column in the same migration that added
+the encrypted ones would have broken any replica still running the previous build
+mid-deploy.
+
+Once every replica is on this build, ship the contract step:
+
+```sql
+ALTER TABLE guests.guests DROP COLUMN id_number;
+```
+
+...and delete `idNumberLegacy` from `modules/guests/infra/schema.ts`.
+
+**If you ever have real plaintext in that column**, it must be backfilled through
+`PiiCipher` (application-side) *before* the drop — it cannot be encrypted in SQL,
+which is the whole point (see `pii-cipher.ts`).
+
 ## Non-negotiables
 
 These are enforced by the build, not by convention:

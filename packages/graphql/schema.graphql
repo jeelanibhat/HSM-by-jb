@@ -2,6 +2,11 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AnonymiseGuestGqlInput {
+  guestId: ID!
+  reason: String!
+}
+
 input AssignRoomGqlInput {
   reservationRoomId: ID!
   roomId: ID!
@@ -21,9 +26,25 @@ type AvailabilityGql {
   total: Int!
 }
 
+input BlacklistGuestGqlInput {
+  blacklisted: Boolean!
+  guestId: ID!
+  reason: String!
+}
+
 input CancelReservationGqlInput {
   reason: String!
   reservationId: ID!
+}
+
+input CreateGuestGqlInput {
+  email: String
+  firstName: String!
+  idNumber: String
+  idType: String
+  lastName: String!
+  phone: String
+  vip: Boolean
 }
 
 input CreateRatePlanGqlInput {
@@ -58,6 +79,19 @@ input CreateRoomTypeGqlInput {
   name: String!
 }
 
+type GuestGql {
+  anonymisedAt: String
+  blacklisted: Boolean!
+  email: String
+  firstName: String!
+  id: ID!
+  idNumberMasked: String
+  idType: String
+  lastName: String!
+  phone: String
+  vip: Boolean!
+}
+
 input GuestInputGql {
   email: String
   firstName: String!
@@ -83,8 +117,10 @@ input ModifyReservationGqlInput {
 }
 
 type Mutation {
+  anonymiseGuest(input: AnonymiseGuestGqlInput!): GuestGql!
   assignRoom(input: AssignRoomGqlInput!): ReservationRoomGql!
   cancelReservation(input: CancelReservationGqlInput!): ReservationGql!
+  createGuest(input: CreateGuestGqlInput!): GuestGql!
   createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
   createReservation(input: CreateReservationGqlInput!): ReservationGql!
   createRoom(input: CreateRoomGqlInput!): RoomGql!
@@ -93,6 +129,8 @@ type Mutation {
   logout: Boolean!
   modifyReservation(input: ModifyReservationGqlInput!): ReservationGql!
   refreshToken: AuthPayload!
+  revealIdNumber(input: RevealIdGqlInput!): String!
+  setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
 }
@@ -118,6 +156,9 @@ type Query {
   availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
   currentProperty: PropertyType
   departures(date: String!): [ReservationGql!]!
+  guest(id: ID!): GuestGql
+  guestByIdNumber(idNumber: String!): GuestGql
+  guestStays(guestId: ID!): [StayGql!]!
   health: Health!
   me: UserType!
   myProperties: [PropertyType!]!
@@ -127,6 +168,7 @@ type Query {
   reservations(status: ReservationStatus): [ReservationGql!]!
   roomTypes: [RoomTypeGql!]!
   rooms: [RoomGql!]!
+  searchGuests(query: String!): [GuestGql!]!
   tapeChart(from: String!, to: String!): TapeChartGql!
 }
 
@@ -197,6 +239,11 @@ enum ReservationStatus {
   NO_SHOW
 }
 
+input RevealIdGqlInput {
+  guestId: ID!
+  reason: String!
+}
+
 """A role held at a specific property. There are no global roles."""
 enum Role {
   ADMIN
@@ -248,6 +295,14 @@ input SetRatePricesGqlInput {
   ratePlanId: ID!
   roomTypeId: ID!
   to: String!
+}
+
+type StayGql {
+  arrivalDate: String!
+  confirmationNo: String!
+  departureDate: String!
+  reservationId: ID!
+  status: String!
 }
 
 type Subscription {

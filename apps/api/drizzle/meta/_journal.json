@@ -71,6 +71,13 @@
       "when": 1783793108826,
       "tag": "0009_availability_check_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783801306953,
+      "tag": "0010_panoramic_killmonger",
+      "breakpoints": true
     }
   ]
 }

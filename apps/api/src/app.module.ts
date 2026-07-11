@@ -18,6 +18,7 @@ import type { AccessTokenPayload } from './modules/identity';
 import { PropertyModule } from './modules/property';
 import { InventoryModule } from './modules/inventory';
 import { ReservationsModule } from './modules/reservations';
+import { GuestsModule } from './modules/guests';
 
 @Module({
   imports: [
@@ -166,6 +167,7 @@ import { ReservationsModule } from './modules/reservations';
     IdentityModule,
     PropertyModule,
     InventoryModule,
+    GuestsModule,
     ReservationsModule,
   ],
   // The global auth/tenancy/RBAC guards are registered inside IdentityModule —

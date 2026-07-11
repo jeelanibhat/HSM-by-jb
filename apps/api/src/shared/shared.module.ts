@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { PiiCipher } from './crypto/pii-cipher';
 import { EventBus } from './events/event-bus';
 import { EventPubSubBridge, PUB_SUB, pubSubProvider } from './events/pubsub';
 import { OutboxRelay } from './outbox/outbox.relay';
@@ -19,7 +20,8 @@ import { TransactionalUnitOfWork } from './unit-of-work';
     OutboxRelay,
     pubSubProvider,
     EventPubSubBridge,
+    PiiCipher,
   ],
-  exports: [TransactionalUnitOfWork, EventBus, OutboxRelay, PUB_SUB],
+  exports: [TransactionalUnitOfWork, EventBus, OutboxRelay, PUB_SUB, PiiCipher],
 })
 export class SharedModule {}

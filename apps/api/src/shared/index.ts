@@ -14,3 +14,4 @@ export type { DomainEvent, EventType, PublishedEvent } from './events/domain-eve
 
 export { OutboxRelay } from './outbox/outbox.relay';
 export { PUB_SUB, TOPIC } from './events/pubsub';
+export { PiiCipher } from './crypto/pii-cipher';
