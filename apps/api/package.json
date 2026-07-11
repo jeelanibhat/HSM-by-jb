@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@apollo/server": "^5.0.0",
+    "@as-integrations/express5": "^1.1.2",
     "@hotelos/domain": "workspace:*",
     "@nestjs/apollo": "^13.0.1",
     "@nestjs/common": "^11.0.1",

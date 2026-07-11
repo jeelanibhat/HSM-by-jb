@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
@@ -33,13 +32,10 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Property-Id', 'X-Request-Id'],
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // strip unknown properties
-      forbidNonWhitelisted: true, // ...and reject payloads that carry them
-      transform: true,
-    }),
-  );
+  // Deliberately NO class-validator ValidationPipe. Input validation is zod,
+  // shared with the web app's forms from @hotelos/domain (TDD §7.1) — one schema,
+  // one set of rules, applied at the resolver boundary. Adding class-validator
+  // would mean two validation stacks that can disagree.
 
   app.enableShutdownHooks();
 

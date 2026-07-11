@@ -1,0 +1,12 @@
+{
+  "name": "@hotelos/graphql",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated SDL artifact. Emitted by apps/api (code-first); consumed by apps/web codegen.",
+  "files": [
+    "schema.graphql"
+  ],
+  "exports": {
+    "./schema.graphql": "./schema.graphql"
+  }
+}
