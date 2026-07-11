@@ -126,7 +126,70 @@ export const cancelReservationSchema = z.object({
 export const updateRoomStatusSchema = z.object({
   roomId: uuidSchema,
   status: z.enum(ROOM_STATUSES),
+  /** Taking a room OOO is disruptive; the audit log wants to know why. */
+  reason: z.string().trim().max(500).optional(),
 });
+
+// ── Inventory (TDD §4.2) ────────────────────────────────────────────────────
+
+/** Short code used on the tape chart and in reports — DLX, STD, SUITE. */
+export const codeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(16)
+  .regex(/^[A-Z0-9_-]+$/, 'Use upper-case letters, digits, - or _');
+
+export const createRoomTypeSchema = z
+  .object({
+    code: codeSchema,
+    name: z.string().trim().min(1).max(100),
+    baseOccupancy: z.number().int().min(1).max(10),
+    maxOccupancy: z.number().int().min(1).max(10),
+    description: z.string().max(1000).optional(),
+  })
+  .refine((v) => v.maxOccupancy >= v.baseOccupancy, {
+    message: 'Max occupancy cannot be below base occupancy',
+    path: ['maxOccupancy'],
+  });
+
+export const createRoomSchema = z.object({
+  roomTypeId: uuidSchema,
+  // Hotel room numbers are not integers: '12A', 'P-1', '0101' all occur.
+  number: z.string().trim().min(1).max(16),
+  floor: z.string().trim().max(16).optional(),
+});
+
+export const createRatePlanSchema = z.object({
+  code: codeSchema,
+  name: z.string().trim().min(1).max(100),
+  currency: currencySchema,
+  mealPlan: z.enum(['EP', 'CP', 'MAP', 'AP']).default('EP'), // room-only → all-inclusive
+  description: z.string().max(1000).optional(),
+});
+
+/**
+ * Set prices across a date range in one shot. A front office does not price
+ * 365 days one at a time.
+ */
+export const setRatePricesSchema = z
+  .object({
+    ratePlanId: uuidSchema,
+    roomTypeId: uuidSchema,
+    from: businessDateSchema,
+    to: businessDateSchema, // inclusive — you are pricing days, not a stay
+    priceMinor: moneyMinorSchema.min(0, 'Price cannot be negative'),
+  })
+  .refine((v) => v.to >= v.from, {
+    message: 'End date cannot be before start date',
+    path: ['to'],
+  });
+
+export type CreateRoomTypeInput = z.infer<typeof createRoomTypeSchema>;
+export type CreateRoomInput = z.infer<typeof createRoomSchema>;
+export type CreateRatePlanInput = z.infer<typeof createRatePlanSchema>;
+export type SetRatePricesInput = z.infer<typeof setRatePricesSchema>;
+export type UpdateRoomStatusInput = z.infer<typeof updateRoomStatusSchema>;
 
 export const folioLineTypeSchema = z.enum(FOLIO_LINE_TYPES);
 export const roleSchema = z.enum(ROLES);

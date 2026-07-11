@@ -7,6 +7,28 @@ type AuthPayload {
   user: UserType!
 }
 
+input CreateRatePlanGqlInput {
+  code: String!
+  currency: String!
+  description: String
+  mealPlan: String! = "EP"
+  name: String!
+}
+
+input CreateRoomGqlInput {
+  floor: String
+  number: String!
+  roomTypeId: ID!
+}
+
+input CreateRoomTypeGqlInput {
+  baseOccupancy: Int!
+  code: String!
+  description: String
+  maxOccupancy: Int!
+  name: String!
+}
+
 type Health {
   database: String!
   status: String!
@@ -19,9 +41,14 @@ input LoginInput {
 }
 
 type Mutation {
+  createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
+  createRoom(input: CreateRoomGqlInput!): RoomGql!
+  createRoomType(input: CreateRoomTypeGqlInput!): RoomTypeGql!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
   refreshToken: AuthPayload!
+  setRatePrices(input: SetRatePricesGqlInput!): Float!
+  updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
 }
 
 type PropertyRoleType {
@@ -45,6 +72,27 @@ type Query {
   health: Health!
   me: UserType!
   myProperties: [PropertyType!]!
+  ratePlans: [RatePlanGql!]!
+  ratePrices(from: String!, roomTypeId: ID!, to: String!): [RatePriceGql!]!
+  roomTypes: [RoomTypeGql!]!
+  rooms: [RoomGql!]!
+}
+
+type RatePlanGql {
+  code: String!
+  currency: String!
+  description: String
+  id: ID!
+  mealPlan: String!
+  name: String!
+}
+
+type RatePriceGql {
+  date: String!
+  id: ID!
+  priceMinor: Int!
+  ratePlanId: ID!
+  roomTypeId: ID!
 }
 
 """A role held at a specific property. There are no global roles."""
@@ -54,6 +102,50 @@ enum Role {
   FRONT_DESK
   HOUSEKEEPING
   MANAGER
+}
+
+type RoomGql {
+  allowedTransitions: [RoomStatus!]!
+  floor: String
+  id: ID!
+  number: String!
+  roomTypeId: ID!
+  status: RoomStatus!
+  statusNote: String
+}
+
+"""
+VACANT_CLEAN | VACANT_DIRTY | OCCUPIED | OOO (out of order) | OOS (out of service)
+"""
+enum RoomStatus {
+  OCCUPIED
+  OOO
+  OOS
+  VACANT_CLEAN
+  VACANT_DIRTY
+}
+
+type RoomTypeGql {
+  baseOccupancy: Int!
+  code: String!
+  description: String
+  id: ID!
+  maxOccupancy: Int!
+  name: String!
+}
+
+input SetRatePricesGqlInput {
+  from: String!
+  priceMinor: Int!
+  ratePlanId: ID!
+  roomTypeId: ID!
+  to: String!
+}
+
+input UpdateRoomStatusGqlInput {
+  reason: String
+  roomId: ID!
+  status: RoomStatus!
 }
 
 type UserType {

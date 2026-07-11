@@ -1,14 +1,21 @@
 'use client';
 
 import { useQuery } from '@apollo/client';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { MY_PROPERTIES, type Property } from '@/lib/graphql/operations';
 
+const NAV = [
+  { href: '/front-desk', label: 'Front desk' },
+  { href: '/rooms', label: 'Rooms' },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, role, propertyId, switchProperty, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -35,6 +42,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="border-b border-black/10 dark:border-white/10">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
           <span className="text-sm font-semibold tracking-tight">HotelOS</span>
+
+          <nav className="flex items-center gap-1">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rounded px-2 py-1 text-sm transition-opacity ${
+                  pathname === item.href
+                    ? 'bg-black/5 font-medium dark:bg-white/10'
+                    : 'opacity-60 hover:opacity-100'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
 
           {/* The property switcher. Only lists hotels this user holds a role at —
               the server enforces that, we merely render it. */}

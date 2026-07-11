@@ -14,6 +14,7 @@ import { ValkeyModule } from './valkey/valkey.module';
 import { SharedModule } from './shared';
 import { IdentityModule } from './modules/identity';
 import { PropertyModule } from './modules/property';
+import { InventoryModule } from './modules/inventory';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { PropertyModule } from './modules/property';
     HealthModule,
     IdentityModule,
     PropertyModule,
+    InventoryModule,
   ],
   // The global auth/tenancy/RBAC guards are registered inside IdentityModule —
   // they need JwtService, which lives there. They still apply app-wide, so every

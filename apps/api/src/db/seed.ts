@@ -7,13 +7,14 @@
  * app role (correctly) cannot do.
  */
 import * as argon2 from 'argon2';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { uuidv7 } from 'uuidv7';
-import { ROLES } from '@hotelos/domain';
+import { addDays, businessDate, ROLES } from '@hotelos/domain';
 import { roles, userPropertyRoles, users } from '../modules/identity/infra/schema';
 import { organizations, properties, taxes } from '../modules/property/infra/schema';
+import { ratePlans, ratePrices, rooms, roomTypes } from '../modules/inventory/infra/schema';
 
 const OWNER_URL =
   process.env['DATABASE_MIGRATION_URL'] ?? 'postgresql://hotelos:hotelos@localhost:5432/hotelos';
@@ -163,7 +164,105 @@ async function main(): Promise<void> {
       }
     }
 
+    // ── Inventory (TDD §4.2) ────────────────────────────────────────────────
+    // Only Alpha gets rooms. Beta stays empty on purpose: a tenancy bug in the
+    // inventory queries then shows up as Beta seeing rooms it does not own.
+    const types = [
+      { code: 'STD', name: 'Standard', base: 2, max: 3, priceMinor: 350_000 }, // ₹3,500
+      { code: 'DLX', name: 'Deluxe', base: 2, max: 4, priceMinor: 550_000 }, // ₹5,500
+      { code: 'SUITE', name: 'Suite', base: 2, max: 4, priceMinor: 950_000 }, // ₹9,500
+    ];
+
+    const typeIds = new Map<string, string>();
+    for (const t of types) {
+      const [existing] = await db
+        .select()
+        .from(roomTypes)
+        .where(and(eq(roomTypes.propertyId, SEED.alphaId), eq(roomTypes.code, t.code)));
+
+      const id = existing?.id ?? uuidv7();
+      if (!existing) {
+        await db.insert(roomTypes).values({
+          id,
+          propertyId: SEED.alphaId,
+          code: t.code,
+          name: t.name,
+          baseOccupancy: t.base,
+          maxOccupancy: t.max,
+        });
+      }
+      typeIds.set(t.code, id);
+    }
+
+    // 30 rooms: floors 1–3, ten per floor. Mixed statuses so the status board and
+    // the availability counters have something non-trivial to show.
+    const statuses = ['VACANT_CLEAN', 'VACANT_DIRTY', 'VACANT_CLEAN', 'VACANT_CLEAN', 'OOO'];
+    for (let floor = 1; floor <= 3; floor++) {
+      for (let n = 1; n <= 10; n++) {
+        const number = `${floor}${String(n).padStart(2, '0')}`; // 101..110, 201..
+        const code = n <= 6 ? 'STD' : n <= 9 ? 'DLX' : 'SUITE';
+
+        const [existing] = await db
+          .select()
+          .from(rooms)
+          .where(and(eq(rooms.propertyId, SEED.alphaId), eq(rooms.number, number)));
+        if (existing) continue;
+
+        await db.insert(rooms).values({
+          id: uuidv7(),
+          propertyId: SEED.alphaId,
+          roomTypeId: typeIds.get(code)!,
+          number,
+          floor: String(floor),
+          status: statuses[(floor + n) % statuses.length]!,
+        });
+      }
+    }
+
+    const [existingPlan] = await db
+      .select()
+      .from(ratePlans)
+      .where(and(eq(ratePlans.propertyId, SEED.alphaId), eq(ratePlans.code, 'BAR')));
+
+    const planId = existingPlan?.id ?? uuidv7();
+    if (!existingPlan) {
+      await db.insert(ratePlans).values({
+        id: planId,
+        propertyId: SEED.alphaId,
+        code: 'BAR',
+        name: 'Best Available Rate',
+        currency: 'INR',
+        mealPlan: 'CP', // with breakfast
+      });
+    }
+
+    // Price the next 90 days from the seeded business date.
+    let cursor = businessDate('2026-07-11');
+    const priceRows: Array<typeof ratePrices.$inferInsert> = [];
+    for (let i = 0; i < 90; i++) {
+      for (const t of types) {
+        priceRows.push({
+          id: uuidv7(),
+          propertyId: SEED.alphaId,
+          ratePlanId: planId,
+          roomTypeId: typeIds.get(t.code)!,
+          date: cursor,
+          priceMinor: t.priceMinor,
+        });
+      }
+      cursor = addDays(cursor, 1);
+    }
+
+    await db
+      .insert(ratePrices)
+      .values(priceRows)
+      .onConflictDoNothing({
+        target: [ratePrices.ratePlanId, ratePrices.roomTypeId, ratePrices.date],
+      });
+
     console.warn('Seed complete.');
+    console.warn('  Inventory  : Hotel Alpha — 3 room types, 30 rooms, BAR plan, 90 days priced');
+    console.warn('               Hotel Beta  — deliberately empty (tenancy canary)');
     console.warn(`  Properties : Hotel Alpha (${SEED.alphaId})`);
     console.warn(`               Hotel Beta  (${SEED.betaId})`);
     console.warn(`  Password   : ${SEED.password}`);
