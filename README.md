@@ -43,6 +43,21 @@ pnpm dev                      # api :4000, web :3000
 | `pnpm lint` / `pnpm typecheck` | Static gates |
 | `pnpm db:up` / `pnpm db:down` / `pnpm db:reset` | Local infra |
 
+## Troubleshooting
+
+**Web app 500s with `Could not find the module ... segment-explorer-node.js#SegmentViewNode
+in the React Client Manifest`, then `Cannot read properties of undefined (reading 'call')`.**
+
+`.next` holds a *production* build and you are now running `next dev` (or vice versa).
+Dev mode reuses the production client manifest, which has no dev-tools modules in it,
+and RSC hydration dies. Nothing is wrong with your code.
+
+```bash
+rm -rf apps/web/.next && pnpm --filter @hotelos/web dev
+```
+
+Don't run `next build`/`next start` and `next dev` against the same `.next` directory.
+
 ## Layout
 
 ```
