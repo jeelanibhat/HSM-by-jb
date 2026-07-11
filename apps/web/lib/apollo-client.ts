@@ -1,23 +1,35 @@
-import { ApolloClient, HttpLink, InMemoryCache, from } from '@apollo/client';
+import {
+  ApolloClient,
+  HttpLink,
+  InMemoryCache,
+  Observable,
+  from,
+  type FetchResult,
+  type NormalizedCacheObject,
+} from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
 /**
- * Apollo is the source of truth for server state (TDD §7.3) — no Redux.
+ * Apollo is the source of truth for server state (TDD §7.3). No Redux.
  *
- * The links, in order:
- *   error   → catches 401 and drives the silent-refresh retry
- *   auth    → injects the access token + X-Property-Id tenancy header
- *   http    → /graphql
+ * Link order: error → auth → http.
+ *   error: catches UNAUTHENTICATED and drives silent refresh + retry
+ *   auth:  injects the access token and the X-Property-Id tenancy header
  */
 
 const GRAPHQL_URL = process.env['NEXT_PUBLIC_GRAPHQL_URL'] ?? 'http://localhost:4000/graphql';
 
 /**
- * The access token lives in memory only. localStorage is readable by any XSS
- * payload; the refresh token is an httpOnly cookie the JS never sees (TDD §3).
+ * The access token lives in memory ONLY.
+ *
+ * localStorage is readable by any XSS payload, and a token there survives the tab.
+ * Keeping it in a module variable means a refresh of the page drops it — which is
+ * fine, because the refresh token (an httpOnly cookie JS cannot read) silently
+ * mints a new one on boot.
  */
 let accessToken: string | null = null;
+let activePropertyId: string | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -27,11 +39,71 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-/** Set by the property-context provider on login / property switch. */
-let activePropertyId: string | null = null;
-
 export function setActiveProperty(propertyId: string | null): void {
   activePropertyId = propertyId;
+}
+
+export function getActiveProperty(): string | null {
+  return activePropertyId;
+}
+
+/** Called when refresh fails — the session is genuinely over. */
+let onSessionExpired: () => void = () => {};
+
+export function setSessionExpiredHandler(fn: () => void): void {
+  onSessionExpired = fn;
+}
+
+const REFRESH_MUTATION = `
+  mutation RefreshToken {
+    refreshToken {
+      accessToken
+      user { id email name roles { propertyId role } }
+    }
+  }
+`;
+
+/**
+ * Ask the server for a new access token using the httpOnly refresh cookie.
+ *
+ * Deliberately a bare fetch, not an Apollo mutation: routing it back through the
+ * client would re-enter the error link on failure and recurse forever.
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const res = await fetch(GRAPHQL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // sends the httpOnly cookie
+      body: JSON.stringify({ query: REFRESH_MUTATION }),
+    });
+
+    const json = await res.json();
+    const token: string | undefined = json?.data?.refreshToken?.accessToken;
+
+    if (!token) return null;
+
+    setAccessToken(token);
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One refresh at a time. Without this, a page that fires six queries on mount and
+ * gets six 401s would kick off six concurrent refreshes — and because refresh
+ * tokens ROTATE, five of them would present an already-spent token, trip the
+ * server's reuse detection, and revoke the whole family. The user would be
+ * force-logged-out by their own app.
+ */
+let inFlightRefresh: Promise<string | null> | null = null;
+
+function refreshOnce(): Promise<string | null> {
+  inFlightRefresh ??= refreshAccessToken().finally(() => {
+    inFlightRefresh = null;
+  });
+  return inFlightRefresh;
 }
 
 const authLink = setContext((_, { headers }) => ({
@@ -42,31 +114,54 @@ const authLink = setContext((_, { headers }) => ({
   },
 }));
 
-const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
-  // 401 → silent refresh → retry (TDD §7.3). Wired up when the auth module lands
-  // in build step 3; the seam is here so no caller has to know about it.
+const errorLink = onError(({ graphQLErrors, operation, forward }) => {
   const unauthenticated = graphQLErrors?.some(
     (e) => e.extensions?.['code'] === 'UNAUTHENTICATED',
   );
 
-  if (unauthenticated) {
-    return forward(operation);
+  if (!unauthenticated) return;
+
+  // Don't try to refresh the refresh call itself.
+  if (operation.operationName === 'RefreshToken' || operation.operationName === 'Login') {
+    return;
   }
 
-  if (networkError) {
-    console.error('[network]', networkError.message);
-  }
+  return new Observable<FetchResult>((observer) => {
+    refreshOnce()
+      .then((token) => {
+        if (!token) {
+          onSessionExpired();
+          observer.error(new Error('Session expired'));
+          return;
+        }
+
+        operation.setContext(({ headers = {} }: { headers?: Record<string, string> }) => ({
+          headers: { ...headers, authorization: `Bearer ${token}` },
+        }));
+
+        forward(operation).subscribe({
+          next: observer.next.bind(observer),
+          error: observer.error.bind(observer),
+          complete: observer.complete.bind(observer),
+        });
+      })
+      .catch((err: unknown) => observer.error(err));
+  });
 });
 
-export function createApolloClient(): ApolloClient<unknown> {
+export function createApolloClient(): ApolloClient<NormalizedCacheObject> {
   return new ApolloClient({
-    link: from([errorLink, authLink, new HttpLink({ uri: GRAPHQL_URL, credentials: 'include' })]),
+    link: from([
+      errorLink,
+      authLink,
+      new HttpLink({ uri: GRAPHQL_URL, credentials: 'include' }),
+    ]),
     cache: new InMemoryCache({
       typePolicies: {
         Query: {
           fields: {
-            // The tape chart is queried per date-window; each window is its own
-            // cache entry rather than one list Apollo would try to merge.
+            // The tape chart is fetched per date-window; each window is its own
+            // cache entry rather than a list Apollo would try to merge.
             tapeChart: { keyArgs: ['from', 'to'] },
             reservations: { keyArgs: ['filter'] },
           },
@@ -78,3 +173,16 @@ export function createApolloClient(): ApolloClient<unknown> {
     },
   });
 }
+
+/**
+ * Wipe the cache on logout and on property switch — never show one hotel's cached
+ * data under another hotel's context.
+ *
+ * Typed loosely on purpose: useApolloClient() hands back ApolloClient<object>,
+ * and we only need clearStore(), so the cache's shape is irrelevant here.
+ */
+export async function resetClient(client: Pick<ApolloClient<unknown>, 'clearStore'>): Promise<void> {
+  await client.clearStore();
+}
+
+export { refreshOnce };

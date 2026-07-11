@@ -33,18 +33,32 @@ export function appDb(client: postgres.Sql) {
   return drizzle(client, { schema });
 }
 
-/** Wipe tenant data between tests. Owner-scoped so RLS doesn't hide rows from us. */
-export async function truncateAll(owner: postgres.Sql): Promise<void> {
-  await owner.unsafe(`
-    TRUNCATE
-      shared.audit_log,
-      shared.outbox_events,
-      shared.night_audit_runs,
-      identity.user_property_roles,
-      identity.users,
-      property.taxes,
-      property.properties,
-      property.organizations
-    RESTART IDENTITY CASCADE;
-  `);
+/**
+ * Delete only the rows belonging to the given properties, plus the org that owns
+ * them. Owner-scoped so RLS doesn't hide rows from the cleanup itself.
+ *
+ * Deliberately NOT a TRUNCATE of every table. An earlier version did exactly that
+ * and wiped identity.users — which is the SEED that auth.integration.test.ts
+ * depends on. The suites then passed or failed purely on file order, and running
+ * the tests destroyed the developer's local database. A test must clean up after
+ * itself without reaching outside its own fixtures.
+ */
+export async function cleanupProperties(
+  owner: postgres.Sql,
+  propertyIds: readonly string[],
+  organizationId: string,
+): Promise<void> {
+  if (propertyIds.length === 0) return;
+
+  // The ::uuid[] cast is required: postgres.js sends a JS string array as text[],
+  // and `uuid = ANY(text[])` has no operator in Postgres.
+  const ids = propertyIds as string[];
+
+  // Children first — FKs point at properties.
+  await owner`DELETE FROM shared.audit_log             WHERE property_id = ANY(${ids}::uuid[])`;
+  await owner`DELETE FROM shared.night_audit_runs      WHERE property_id = ANY(${ids}::uuid[])`;
+  await owner`DELETE FROM identity.user_property_roles WHERE property_id = ANY(${ids}::uuid[])`;
+  await owner`DELETE FROM property.taxes               WHERE property_id = ANY(${ids}::uuid[])`;
+  await owner`DELETE FROM property.properties          WHERE id          = ANY(${ids}::uuid[])`;
+  await owner`DELETE FROM property.organizations       WHERE id = ${organizationId}`;
 }

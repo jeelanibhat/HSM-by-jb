@@ -12,11 +12,19 @@
  */
 import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { appClient, ownerClient, truncateAll } from '../test/db';
+import { appClient, cleanupProperties, ownerClient } from '../test/db';
 
-const ORG = '00000000-0000-0000-0000-0000000000aa';
-const ALPHA = '11111111-1111-1111-1111-111111111111';
-const BETA = '22222222-2222-2222-2222-222222222222';
+/**
+ * This suite's OWN fixtures — deliberately not the seed's property ids.
+ *
+ * Sharing ids with the seed meant cleanup had to truncate the shared tables,
+ * which destroyed identity.users and left this suite and the auth suite
+ * order-dependent (and wiped the developer's local DB). Isolated ids mean this
+ * file can run in any order, alongside anything, and clean up only after itself.
+ */
+const ORG = 'dddddddd-0000-0000-0000-00000000000f';
+const ALPHA = 'dddddddd-1111-1111-1111-111111111111';
+const BETA = 'dddddddd-2222-2222-2222-222222222222';
 
 let app: postgres.Sql;
 let owner: postgres.Sql;
@@ -38,19 +46,20 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
+  await cleanupProperties(owner, [ALPHA, BETA], ORG);
   await app.end();
   await owner.end();
 });
 
 beforeEach(async () => {
-  await truncateAll(owner);
+  await cleanupProperties(owner, [ALPHA, BETA], ORG);
 
-  await owner`INSERT INTO property.organizations (id, name) VALUES (${ORG}, 'Acme Group')`;
+  await owner`INSERT INTO property.organizations (id, name) VALUES (${ORG}, 'RLS Fixture Group')`;
   await owner`
     INSERT INTO property.properties (id, organization_id, name, timezone, currency, business_date)
     VALUES
-      (${ALPHA}, ${ORG}, 'Hotel Alpha', 'Asia/Kolkata', 'INR', '2026-07-11'),
-      (${BETA},  ${ORG}, 'Hotel Beta',  'Asia/Kolkata', 'INR', '2026-07-11')
+      (${ALPHA}, ${ORG}, 'RLS Fixture Alpha', 'Asia/Kolkata', 'INR', '2026-07-11'),
+      (${BETA},  ${ORG}, 'RLS Fixture Beta',  'Asia/Kolkata', 'INR', '2026-07-11')
   `;
   await owner`
     INSERT INTO property.taxes (id, property_id, name, rate_bps, type)
@@ -114,7 +123,7 @@ describe('reads', () => {
 
   it('scopes the properties table to the caller itself', async () => {
     const rows = await asTenant(ALPHA, (tx) => tx`SELECT name FROM property.properties`);
-    expect(rows.map((r) => r['name'])).toEqual(['Hotel Alpha']);
+    expect(rows.map((r) => r['name'])).toEqual(['RLS Fixture Alpha']);
   });
 
   it('does not leak via aggregates', async () => {
