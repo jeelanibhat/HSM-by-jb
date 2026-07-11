@@ -3,6 +3,26 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   reactStrictMode: true,
 
+  /**
+   * Dev and prod builds get SEPARATE output directories.
+   *
+   * They share `.next` by default, and the two are not compatible: a production
+   * build writes a client manifest with no dev-tools modules in it, so a dev
+   * server pointed at it dies with
+   *
+   *   Could not find the module ...segment-explorer-node.js#SegmentViewNode
+   *   in the React Client Manifest
+   *   TypeError: Cannot read properties of undefined (reading 'call')
+   *
+   * ...and Next blames "a bug in the React Server Components bundler", which
+   * sends you hunting in the wrong place entirely.
+   *
+   * That collision happens on a completely ordinary action: running `pnpm build`
+   * (or CI's build gate) while `pnpm dev` is up. A README warning does not
+   * survive contact with that. Separate directories make it impossible.
+   */
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
+
   // Type-safe monorepo imports without a build step for the shared package.
   transpilePackages: ['@hotelos/domain'],
 

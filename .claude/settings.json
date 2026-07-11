@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node \"C:\\\\Users\\\\HP\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Jeelani-Data-Clients-Data-HotelMangementSystem\\\\833e806a-183e-487d-851f-40e5466ca69e\\\\scratchpad\\\\verify-app.mjs\")"
+    ]
+  }
+}

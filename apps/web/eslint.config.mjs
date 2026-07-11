@@ -10,7 +10,9 @@ import base from '@hotelos/config/eslint/base';
 export default [
   ...base,
   {
-    ignores: ['.next/**', 'next-env.d.ts', 'lib/graphql/generated/**'],
+    // .next-dev is the dev-mode build output (see next.config.ts distDir).
+    // Both are generated — linting them reports errors in code we did not write.
+    ignores: ['.next/**', '.next-dev/**', 'next-env.d.ts', 'lib/graphql/generated/**'],
   },
   {
     files: ['**/*.{ts,tsx}'],
