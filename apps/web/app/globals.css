@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/**
+ * Room/reservation status tokens (TDD §7.2).
+ *
+ * The tape chart and the room-status board MUST agree on colour — a room that
+ * reads "dirty" on one screen and "clean" on another is how rooms get
+ * double-sold. Defined once here; both surfaces consume the token, never a
+ * literal hex. Moves to packages/ui when the design system lands.
+ */
+@theme {
+  --color-status-vacant-clean: oklch(0.72 0.15 155); /* green  — sellable now */
+  --color-status-vacant-dirty: oklch(0.78 0.16 75); /* amber  — needs housekeeping */
+  --color-status-occupied: oklch(0.62 0.17 255); /* blue   — in-house */
+  --color-status-ooo: oklch(0.58 0.19 25); /* red    — out of order */
+  --color-status-oos: oklch(0.55 0.03 260); /* slate  — out of service */
+
+  --color-res-enquiry: oklch(0.72 0.04 260);
+  --color-res-confirmed: oklch(0.62 0.17 255);
+  --color-res-checked-in: oklch(0.72 0.15 155);
+  --color-res-checked-out: oklch(0.65 0.02 260);
+  --color-res-cancelled: oklch(0.62 0.12 25);
+  --color-res-no-show: oklch(0.55 0.16 15);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0.01 260);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.16 0.01 260);
+    --foreground: oklch(0.95 0.005 260);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

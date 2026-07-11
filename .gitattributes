@@ -1,0 +1,9 @@
+# Normalize to LF in the repo. Devs are on Windows, CI runs Ubuntu — without
+# this, every file round-trips as a whole-file diff the first time CI touches it.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+pnpm-lock.yaml -diff linguist-generated

@@ -1,0 +1,20 @@
+{
+  "name": "@hotelos/config",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "tsconfig",
+    "eslint"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/next.json": "./tsconfig/next.json",
+    "./eslint/base": "./eslint/base.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "typescript-eslint": "^8.20.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+
+    // NestJS decorators + DI metadata
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false,
+
+    // NestJS DI relies on optional properties being injectable; this rule fights it
+    "exactOptionalPropertyTypes": false
+  }
+}
