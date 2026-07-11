@@ -2,9 +2,28 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AssignRoomGqlInput {
+  reservationRoomId: ID!
+  roomId: ID!
+}
+
 type AuthPayload {
   accessToken: String!
   user: UserType!
+}
+
+type AvailabilityGql {
+  available: Int!
+  blocked: Int!
+  date: String!
+  roomTypeId: ID!
+  sold: Int!
+  total: Int!
+}
+
+input CancelReservationGqlInput {
+  reason: String!
+  reservationId: ID!
 }
 
 input CreateRatePlanGqlInput {
@@ -13,6 +32,16 @@ input CreateRatePlanGqlInput {
   description: String
   mealPlan: String! = "EP"
   name: String!
+}
+
+input CreateReservationGqlInput {
+  arrivalDate: String!
+  departureDate: String!
+  guest: GuestInputGql
+  guestId: ID
+  notes: String
+  rooms: [ReservationRoomInputGql!]!
+  source: ReservationSource!
 }
 
 input CreateRoomGqlInput {
@@ -29,6 +58,13 @@ input CreateRoomTypeGqlInput {
   name: String!
 }
 
+input GuestInputGql {
+  email: String
+  firstName: String!
+  lastName: String!
+  phone: String
+}
+
 type Health {
   database: String!
   status: String!
@@ -40,12 +76,22 @@ input LoginInput {
   password: String!
 }
 
+input ModifyReservationGqlInput {
+  arrivalDate: String!
+  departureDate: String!
+  reservationId: ID!
+}
+
 type Mutation {
+  assignRoom(input: AssignRoomGqlInput!): ReservationRoomGql!
+  cancelReservation(input: CancelReservationGqlInput!): ReservationGql!
   createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
+  createReservation(input: CreateReservationGqlInput!): ReservationGql!
   createRoom(input: CreateRoomGqlInput!): RoomGql!
   createRoomType(input: CreateRoomTypeGqlInput!): RoomTypeGql!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
+  modifyReservation(input: ModifyReservationGqlInput!): ReservationGql!
   refreshToken: AuthPayload!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
@@ -68,12 +114,17 @@ type PropertyType {
 }
 
 type Query {
+  arrivals(date: String!): [ReservationGql!]!
+  availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
   currentProperty: PropertyType
+  departures(date: String!): [ReservationGql!]!
   health: Health!
   me: UserType!
   myProperties: [PropertyType!]!
   ratePlans: [RatePlanGql!]!
   ratePrices(from: String!, roomTypeId: ID!, to: String!): [RatePriceGql!]!
+  reservation(id: ID!): ReservationGql
+  reservations(status: ReservationStatus): [ReservationGql!]!
   roomTypes: [RoomTypeGql!]!
   rooms: [RoomGql!]!
 }
@@ -93,6 +144,56 @@ type RatePriceGql {
   priceMinor: Int!
   ratePlanId: ID!
   roomTypeId: ID!
+}
+
+type ReservationGql {
+  adults: Int!
+  arrivalDate: String!
+  children: Int!
+  confirmationNo: String!
+  departureDate: String!
+  guestId: ID!
+  id: ID!
+  notes: String
+  rooms: [ReservationRoomGql!]
+  source: ReservationSource!
+  status: ReservationStatus!
+}
+
+type ReservationRoomGql {
+  adults: Int!
+  arrivalDate: String!
+  children: Int!
+  departureDate: String!
+  id: ID!
+  ratePlanId: ID!
+  roomId: ID
+  roomTypeId: ID!
+  status: ReservationStatus!
+}
+
+input ReservationRoomInputGql {
+  adults: Int! = 1
+  children: Int! = 0
+  ratePlanId: ID!
+  roomTypeId: ID!
+}
+
+enum ReservationSource {
+  BOOKING_ENGINE
+  DIRECT
+  OTA
+  PHONE
+  WALK_IN
+}
+
+enum ReservationStatus {
+  CANCELLED
+  CHECKED_IN
+  CHECKED_OUT
+  CONFIRMED
+  ENQUIRY
+  NO_SHOW
 }
 
 """A role held at a specific property. There are no global roles."""

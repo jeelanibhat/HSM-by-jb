@@ -10,3 +10,5 @@ export * from './shared';
 export * from '../../modules/identity/infra/schema';
 export * from '../../modules/property/infra/schema';
 export * from '../../modules/inventory/infra/schema';
+export * from '../../modules/guests/infra/schema';
+export * from '../../modules/reservations/infra/schema';

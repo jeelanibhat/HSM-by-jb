@@ -15,6 +15,7 @@ import { SharedModule } from './shared';
 import { IdentityModule } from './modules/identity';
 import { PropertyModule } from './modules/property';
 import { InventoryModule } from './modules/inventory';
+import { ReservationsModule } from './modules/reservations';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { InventoryModule } from './modules/inventory';
     IdentityModule,
     PropertyModule,
     InventoryModule,
+    ReservationsModule,
   ],
   // The global auth/tenancy/RBAC guards are registered inside IdentityModule —
   // they need JwtService, which lives there. They still apply app-wide, so every

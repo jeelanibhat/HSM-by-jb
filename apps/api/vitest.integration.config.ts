@@ -29,20 +29,27 @@ export default defineConfig({
     hookTimeout: 120_000,
 
     /**
-     * One PROCESS PER FILE — `singleFork` must stay false.
+     * One PROCESS PER FILE, run ONE FILE AT A TIME.
      *
-     * NestJS code-first GraphQL registers @ObjectType classes in a process-global
-     * metadata registry. Booting a second Nest app in the same process re-registers
-     * them and schema building dies with "Schema must contain uniquely named types
-     * but contains multiple types named PropertyRoleType". Any two integration
-     * files that each stand up an app will collide.
+     * `singleFork: false` — NestJS code-first GraphQL registers @ObjectType classes
+     * in a process-global metadata registry. Booting a second Nest app in the same
+     * process re-registers them and schema building dies with "multiple types named
+     * PropertyRoleType". Each file needs a clean process.
      *
-     * Separate processes give each file a clean registry. Suites are safe to run in
-     * parallel because each owns isolated fixtures (its own property ids) and only
-     * ever deletes its own rows.
+     * `fileParallelism: false` — every suite talks to the SAME Postgres. They share
+     * the outbox table, the availability counters and Hotel Alpha's rooms. Running
+     * them concurrently made the outbox concurrency test flaky (it asserts the queue
+     * drains to empty, while a parallel suite was busy filling it) and would
+     * eventually have produced far more confusing failures in the availability
+     * counters. Isolated FIXTURES are not enough when the tables themselves are
+     * shared; the suites must not overlap in time.
+     *
+     * Slower, deterministic. A flaky integration suite is worse than a slow one:
+     * people learn to re-run it instead of reading it.
      */
     pool: 'forks',
     poolOptions: { forks: { singleFork: false } },
+    fileParallelism: false,
   },
   plugins: [swc.vite({ module: { type: 'es6' } })],
 });

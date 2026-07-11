@@ -344,6 +344,15 @@ describe('outbox relay', () => {
 
     expect(delivered).toHaveLength(20);
     expect(new Set(delivered).size, 'an event was published more than once').toBe(20);
-    expect(await relay.pendingCount()).toBe(0);
+
+    // Scoped to THIS suite's events, not relay.pendingCount(), which is global.
+    // A global assertion here couples this test to every other suite's outbox
+    // traffic — it fails the moment anything else leaves an event pending, which
+    // says nothing about whether the relay double-published.
+    const stillPending = await owner`
+      SELECT count(*)::int AS n FROM shared.outbox_events
+      WHERE payload->>'propertyId' = ${PROPERTY} AND processed_at IS NULL
+    `;
+    expect(stillPending[0]?.['n']).toBe(0);
   });
 });
