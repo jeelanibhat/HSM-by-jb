@@ -32,7 +32,19 @@ const envSchema = z.object({
   GRAPHQL_DEPTH_LIMIT: z.coerce.number().int().positive().default(8),
   GRAPHQL_INTROSPECTION: z.coerce.boolean().default(false),
 
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // 'silent' is a real pino level and the one tests want — a full request log per
+  // assertion buries the actual failure.
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+    .default('info'),
+
+  // Outbox relay (TDD §2). Disabled in tests, which drain it explicitly so the
+  // assertions are deterministic rather than racing a background timer.
+  OUTBOX_RELAY_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  OUTBOX_POLL_MS: z.coerce.number().int().positive().default(1_000),
 });
 
 export type Env = z.infer<typeof envSchema>;

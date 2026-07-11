@@ -11,6 +11,7 @@ import { DbModule } from './db/db.module';
 import { depthLimit } from './graphql/depth-limit';
 import { HealthModule } from './health/health.module';
 import { ValkeyModule } from './valkey/valkey.module';
+import { SharedModule } from './shared';
 import { IdentityModule } from './modules/identity';
 import { PropertyModule } from './modules/property';
 
@@ -97,6 +98,7 @@ import { PropertyModule } from './modules/property';
 
     DbModule,
     ValkeyModule,
+    SharedModule,
     HealthModule,
     IdentityModule,
     PropertyModule,
