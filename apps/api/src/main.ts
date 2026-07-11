@@ -3,8 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
-import { AppModule } from './app.module.js';
-import type { Env } from './config/env.js';
+import cookieParser from 'cookie-parser';
+import { AppModule } from './app.module';
+import type { Env } from './config/env';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -22,6 +23,10 @@ async function bootstrap(): Promise<void> {
       crossOriginEmbedderPolicy: false,
     }),
   );
+
+  // The refresh token arrives as an httpOnly cookie, so it must be parsed before
+  // the auth resolver can read it. It is never accessible to client-side JS.
+  app.use(cookieParser());
 
   // The web app sends the refresh token as an httpOnly cookie (TDD §3), so the
   // origin must be explicit and credentials allowed — a wildcard would be

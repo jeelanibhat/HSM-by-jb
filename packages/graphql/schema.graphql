@@ -2,12 +2,63 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AuthPayload {
+  accessToken: String!
+  user: UserType!
+}
+
 type Health {
   database: String!
   status: String!
   version: String!
 }
 
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  login(input: LoginInput!): AuthPayload!
+  logout: Boolean!
+  refreshToken: AuthPayload!
+}
+
+type PropertyRoleType {
+  propertyId: ID!
+  role: Role!
+}
+
+type PropertyType {
+  businessDate: String!
+  checkInTime: String!
+  checkOutTime: String!
+  currency: String!
+  id: ID!
+  name: String!
+  status: String!
+  timezone: String!
+}
+
 type Query {
+  currentProperty: PropertyType
   health: Health!
+  me: UserType!
+  myProperties: [PropertyType!]!
+}
+
+"""A role held at a specific property. There are no global roles."""
+enum Role {
+  ADMIN
+  AUDITOR
+  FRONT_DESK
+  HOUSEKEEPING
+  MANAGER
+}
+
+type UserType {
+  email: String!
+  id: ID!
+  name: String!
+  roles: [PropertyRoleType!]!
 }

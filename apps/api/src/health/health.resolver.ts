@@ -1,7 +1,8 @@
 import { Inject } from '@nestjs/common';
 import { Field, ObjectType, Query, Resolver } from '@nestjs/graphql';
 import { sql } from 'drizzle-orm';
-import { DB, type Database } from '../db/db.module.js';
+import { DB, type Database } from '../db/db.module';
+import { Public } from '../modules/identity';
 
 @ObjectType()
 export class Health {
@@ -20,9 +21,11 @@ export class HealthResolver {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   /**
-   * Unauthenticated liveness probe. Deliberately leaks nothing but up/down —
-   * no schema names, no versions, no connection strings.
+   * Liveness probe. One of the very few @Public() endpoints — a load balancer has
+   * no bearer token. It deliberately leaks nothing but up/down: no schema names,
+   * no versions, no connection strings.
    */
+  @Public()
   @Query(() => Health)
   async health(): Promise<Health> {
     let database = 'down';

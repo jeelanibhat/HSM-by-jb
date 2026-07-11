@@ -70,7 +70,11 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://hotelos:hotelos@localhost:5432/hotelos
+      # Runtime connects as the UNPRIVILEGED role. If CI ran the app as `hotelos`
+      # (a superuser), every RLS test would pass vacuously — superusers bypass RLS
+      # entirely. That is exactly the bug these tests exist to catch.
+      DATABASE_URL: postgresql://hotelos_app:hotelos_app@localhost:5432/hotelos
+      DATABASE_MIGRATION_URL: postgresql://hotelos:hotelos@localhost:5432/hotelos
       VALKEY_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
       JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-long
@@ -89,15 +93,26 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The exclusion constraint needs btree_gist; without it every
-      # double-booking test fails for the wrong reason.
-      - name: Install Postgres extensions
+      # GitHub service containers don't run docker-entrypoint-initdb.d, so the
+      # init scripts that dev gets for free must be applied by hand here.
+      #
+      #   01: btree_gist — the no_double_booking EXCLUDE constraint needs it.
+      #   02: hotelos_app — the unprivileged runtime role. Without it the app would
+      #       connect as a superuser and RLS would silently not apply.
+      - name: Bootstrap Postgres (extensions + app role)
+        env:
+          PGPASSWORD: hotelos
         run: |
-          PGPASSWORD=hotelos psql -h localhost -U hotelos -d hotelos \
+          psql -h localhost -U hotelos -d hotelos -v ON_ERROR_STOP=1 \
             -f infra/postgres/init/01-extensions.sql
+          psql -h localhost -U hotelos -d hotelos -v ON_ERROR_STOP=1 \
+            -f infra/postgres/init/02-app-role.sql
 
       - name: Migrate
         run: pnpm --filter @hotelos/api db:migrate
+
+      - name: Seed
+        run: pnpm --filter @hotelos/api db:seed
 
       - name: Integration tests
         run: pnpm test:integration

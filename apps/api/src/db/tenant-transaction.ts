@@ -11,7 +11,9 @@
  */
 import { Injectable, Inject } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
-import { DB, type Database } from './db.module.js';
+// From db.tokens, NOT db.module: db.module provides this class, so importing it
+// here would form a cycle and leave the DB token `undefined` at @Inject time.
+import { DB, type Database } from './db.tokens';
 
 /** A transaction handle already scoped to one property. */
 export type TenantTx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -43,9 +45,33 @@ export class TenantTransaction {
   }
 
   /**
-   * Escape hatch for genuinely cross-tenant work: login (we don't know the
-   * property yet), the outbox relay, and Phase 4 group reporting. Named loudly
-   * so it shows up in review.
+   * Scope a transaction to a USER rather than a property.
+   *
+   * This exists for exactly one shape of query: "what may this person access?" —
+   * asked during login and refresh, before any property is chosen. It sets
+   * app.user_id, which the role_visibility policy on identity.user_property_roles
+   * reads (see migration 0003).
+   *
+   * It grants no tenant access: property-scoped tables have no policy keyed on
+   * app.user_id, so they still return nothing here.
+   */
+  async runAsUser<T>(userId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T> {
+    if (!UUID_RE.test(userId)) {
+      throw new Error('Refusing to open a user-scoped transaction with a non-UUID user id');
+    }
+
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.user_id', ${userId}, true)`);
+      return fn(tx);
+    });
+  }
+
+  /**
+   * Escape hatch for genuinely cross-tenant system work: the outbox relay and
+   * Phase 4 group reporting. Named loudly so it shows up in review.
+   *
+   * Note this does NOT defeat RLS — no GUC is set, so tenant tables return zero
+   * rows. It only skips opening a scoped transaction; it is not a bypass.
    */
   async runWithoutTenantScope<T>(fn: (tx: TenantTx) => Promise<T>): Promise<T> {
     return this.db.transaction(fn);

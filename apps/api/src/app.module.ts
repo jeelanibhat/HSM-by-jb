@@ -5,12 +5,14 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import type { Env } from './config/env.js';
-import { validateEnv } from './config/env.js';
-import { DbModule } from './db/db.module.js';
-import { TenantTransaction } from './db/tenant-transaction.js';
-import { depthLimit } from './graphql/depth-limit.js';
-import { HealthModule } from './health/health.module.js';
+import type { Env } from './config/env';
+import { validateEnv } from './config/env';
+import { DbModule } from './db/db.module';
+import { depthLimit } from './graphql/depth-limit';
+import { HealthModule } from './health/health.module';
+import { ValkeyModule } from './valkey/valkey.module';
+import { IdentityModule } from './modules/identity';
+import { PropertyModule } from './modules/property';
 
 @Module({
   imports: [
@@ -94,9 +96,13 @@ import { HealthModule } from './health/health.module.js';
     }),
 
     DbModule,
+    ValkeyModule,
     HealthModule,
+    IdentityModule,
+    PropertyModule,
   ],
-  providers: [TenantTransaction],
-  exports: [TenantTransaction],
+  // The global auth/tenancy/RBAC guards are registered inside IdentityModule —
+  // they need JwtService, which lives there. They still apply app-wide, so every
+  // resolver is protected unless it opts out with @Public(). Fail closed.
 })
 export class AppModule {}

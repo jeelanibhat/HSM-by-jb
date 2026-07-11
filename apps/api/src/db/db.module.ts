@@ -2,13 +2,14 @@ import { Global, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import type { Env } from '../config/env.js';
-import * as schema from './schema/index.js';
+import type { Env } from '../config/env';
+import * as schema from './schema/index';
+import { DB, PG_CLIENT } from './db.tokens';
+import { TenantTransaction } from './tenant-transaction';
 
-export const DB = Symbol('DB');
-export const PG_CLIENT = Symbol('PG_CLIENT');
-
-export type Database = ReturnType<typeof drizzle<typeof schema>>;
+// Re-exported so existing `from '../db/db.module'` imports keep working. The
+// definitions live in db.tokens to avoid a cycle with TenantTransaction.
+export { DB, PG_CLIENT, type Database } from './db.tokens';
 
 @Global()
 @Module({
@@ -53,8 +54,15 @@ export type Database = ReturnType<typeof drizzle<typeof schema>>;
       inject: [PG_CLIENT],
       useFactory: (client: postgres.Sql) => drizzle(client, { schema }),
     },
+
+    // Lives here, not in AppModule. Every module that touches tenant data needs
+    // it, and Nest providers are NOT inherited by child modules — declaring it in
+    // AppModule left PropertyModule unable to resolve it. DbModule is @Global(),
+    // so exporting it here makes it available everywhere without each feature
+    // module importing a plumbing module.
+    TenantTransaction,
   ],
-  exports: [DB, PG_CLIENT],
+  exports: [DB, PG_CLIENT, TenantTransaction],
 })
 export class DbModule implements OnApplicationShutdown {
   constructor() {}

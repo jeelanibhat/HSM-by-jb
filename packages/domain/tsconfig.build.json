@@ -1,0 +1,26 @@
+{
+  "extends": "@hotelos/config/tsconfig/base.json",
+  "compilerOptions": {
+    /**
+     * Emit CommonJS. apps/api is a compiled CJS NestJS app and `require()`s this
+     * package at runtime — it cannot import raw .ts, and it cannot require ESM.
+     * apps/web bundles it either way, so CJS is the safe common denominator.
+     *
+     * The `.js` extensions on our relative imports resolve correctly here: tsc
+     * rewrites `from './enums.js'` to `require('./enums.js')`, and dist/enums.js
+     * is exactly what we emit.
+     */
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "isolatedModules": false,
+
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

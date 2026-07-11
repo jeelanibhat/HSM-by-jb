@@ -13,6 +13,28 @@ import base from '@hotelos/config/eslint/base';
 export default [
   ...base,
   {
+    /**
+     * consistent-type-imports is OFF here, and must stay off.
+     *
+     * NestJS resolves constructor dependencies at RUNTIME from the metadata
+     * `emitDecoratorMetadata` writes (`design:paramtypes`). ESLint sees a service
+     * that only appears in a constructor's type position and concludes it is
+     * type-only — but rewriting `import { ConfigService }` to `import type
+     * { ConfigService }` erases the import at compile time, the metadata becomes
+     * `undefined`, and DI breaks at runtime with an unhelpful "Nest can't resolve
+     * dependencies" error. The rule cannot see decorators.
+     *
+     * `--fix` would happily do this across every provider in the app. Left on,
+     * this rule is a footgun pointed at the DI container.
+     *
+     * It stays enabled in packages/domain and apps/web, which have no DI.
+     */
+    files: ['src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/consistent-type-imports': 'off',
+    },
+  },
+  {
     files: ['src/modules/**/*.ts'],
     rules: {
       'no-restricted-imports': [

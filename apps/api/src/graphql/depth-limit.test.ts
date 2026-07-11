@@ -1,6 +1,6 @@
 import { buildSchema, parse, validate } from 'graphql';
 import { describe, expect, it } from 'vitest';
-import { depthLimit } from './depth-limit.js';
+import { depthLimit } from './depth-limit';
 
 /**
  * The depth limiter is a DoS control (TDD §5.3), so it gets tested like one:
