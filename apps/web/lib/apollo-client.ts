@@ -4,11 +4,15 @@ import {
   InMemoryCache,
   Observable,
   from,
+  split,
   type FetchResult,
   type NormalizedCacheObject,
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { createClient } from 'graphql-ws';
 
 /**
  * Apollo is the source of truth for server state (TDD §7.3). No Redux.
@@ -149,13 +153,52 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
   });
 });
 
+/**
+ * Subscriptions ride a WebSocket, not HTTP.
+ *
+ * The socket authenticates ONCE, at the handshake, via connectionParams — there
+ * are no per-message headers to attach a bearer token to. `lazy` means we only
+ * open it when something actually subscribes, so a page with no live data does
+ * not hold a socket open.
+ *
+ * connectionParams is a FUNCTION, not an object: it is evaluated at connect time,
+ * so a socket that reconnects after the access token was silently refreshed
+ * presents the NEW token. Passing a snapshot object would pin the socket to a
+ * token that expires 15 minutes later and then reconnect forever with a dead one.
+ */
+function createWsLink(): GraphQLWsLink | null {
+  if (typeof window === 'undefined') return null; // no sockets during SSR
+
+  return new GraphQLWsLink(
+    createClient({
+      url: GRAPHQL_URL.replace(/^http/, 'ws'),
+      lazy: true,
+      connectionParams: () => ({
+        authorization: accessToken ? `Bearer ${accessToken}` : '',
+      }),
+      retryAttempts: 5,
+    }),
+  );
+}
+
 export function createApolloClient(): ApolloClient<NormalizedCacheObject> {
+  const httpLink = new HttpLink({ uri: GRAPHQL_URL, credentials: 'include' });
+  const wsLink = createWsLink();
+
+  // Route subscriptions to the socket, everything else over HTTP.
+  const transport = wsLink
+    ? split(
+        ({ query }) => {
+          const def = getMainDefinition(query);
+          return def.kind === 'OperationDefinition' && def.operation === 'subscription';
+        },
+        wsLink,
+        httpLink,
+      )
+    : httpLink;
+
   return new ApolloClient({
-    link: from([
-      errorLink,
-      authLink,
-      new HttpLink({ uri: GRAPHQL_URL, credentials: 'include' }),
-    ]),
+    link: from([errorLink, authLink, transport]),
     cache: new InMemoryCache({
       typePolicies: {
         Query: {

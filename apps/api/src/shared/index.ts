@@ -13,3 +13,4 @@ export { EVENT_TYPES } from './events/domain-event';
 export type { DomainEvent, EventType, PublishedEvent } from './events/domain-event';
 
 export { OutboxRelay } from './outbox/outbox.relay';
+export { PUB_SUB, TOPIC } from './events/pubsub';

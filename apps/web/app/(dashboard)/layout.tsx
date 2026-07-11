@@ -9,6 +9,7 @@ import { MY_PROPERTIES, type Property } from '@/lib/graphql/operations';
 
 const NAV = [
   { href: '/front-desk', label: 'Front desk' },
+  { href: '/tape-chart', label: 'Tape chart' },
   { href: '/rooms', label: 'Rooms' },
 ];
 

@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { EventBus } from './events/event-bus';
+import { EventPubSubBridge, PUB_SUB, pubSubProvider } from './events/pubsub';
 import { OutboxRelay } from './outbox/outbox.relay';
 import { TransactionalUnitOfWork } from './unit-of-work';
 
@@ -12,7 +13,13 @@ import { TransactionalUnitOfWork } from './unit-of-work';
  */
 @Global()
 @Module({
-  providers: [TransactionalUnitOfWork, EventBus, OutboxRelay],
-  exports: [TransactionalUnitOfWork, EventBus, OutboxRelay],
+  providers: [
+    TransactionalUnitOfWork,
+    EventBus,
+    OutboxRelay,
+    pubSubProvider,
+    EventPubSubBridge,
+  ],
+  exports: [TransactionalUnitOfWork, EventBus, OutboxRelay, PUB_SUB],
 })
 export class SharedModule {}

@@ -2,6 +2,7 @@ import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
+import { JwtService } from '@nestjs/jwt';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -13,6 +14,7 @@ import { HealthModule } from './health/health.module';
 import { ValkeyModule } from './valkey/valkey.module';
 import { SharedModule } from './shared';
 import { IdentityModule } from './modules/identity';
+import type { AccessTokenPayload } from './modules/identity';
 import { PropertyModule } from './modules/property';
 import { InventoryModule } from './modules/inventory';
 import { ReservationsModule } from './modules/reservations';
@@ -65,7 +67,7 @@ import { ReservationsModule } from './modules/reservations';
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => {
+      useFactory: (config: ConfigService<Env, true>): Omit<ApolloDriverConfig, 'driver'> => {
         const isProd = config.get('NODE_ENV', { infer: true }) === 'production';
 
         return {
@@ -93,7 +95,66 @@ import { ReservationsModule } from './modules/reservations';
               : { message: 'Internal server error', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
           },
 
-          context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
+          /**
+           * WebSocket subscriptions (TDD §5).
+           *
+           * The HTTP guards cannot run here — there is no request to hang them off.
+           * So the socket authenticates ONCE, at the handshake, and the verified
+           * user is pinned to the connection context. Every subscription resolver
+           * then re-checks the requested propertyId against that user's role claims
+           * (see TapeChartResolver), because otherwise any logged-in user could
+           * subscribe to any hotel's live feed by passing its id — a
+           * WebSocket-shaped hole in the tenancy model.
+           *
+           * A socket that presents no valid token is refused at connect, not left
+           * open and quietly starved.
+           */
+          subscriptions: {
+            'graphql-ws': {
+              onConnect: (ctx) => {
+                // graphql-ws types `extra` as unknown; it is the per-socket bag we
+                // pin the authenticated user to.
+                const extra = ctx.extra as Record<string, unknown>;
+
+                const raw = ctx.connectionParams?.['authorization'];
+                const header = typeof raw === 'string' ? raw : '';
+
+                if (!header.startsWith('Bearer ')) {
+                  throw new Error('Missing bearer token');
+                }
+
+                const jwt = new JwtService();
+                let payload: AccessTokenPayload;
+
+                try {
+                  payload = jwt.verify<AccessTokenPayload>(header.slice('Bearer '.length), {
+                    secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+                  });
+                } catch {
+                  throw new Error('Invalid or expired token');
+                }
+
+                // A refresh token must not open a socket, exactly as it must not
+                // authenticate an HTTP request.
+                if (payload.typ !== 'access') {
+                  throw new Error('Invalid token type');
+                }
+
+                extra['user'] = {
+                  id: payload.sub,
+                  email: payload.email,
+                  name: payload.name,
+                  roles: payload.roles ?? [],
+                };
+              },
+            },
+          },
+
+          context: (ctx: { req?: unknown; res?: unknown; extra?: { user?: unknown } }) => {
+            // HTTP requests carry req/res; WS carries `extra` from onConnect.
+            if (ctx.extra?.user) return { user: ctx.extra.user };
+            return { req: ctx.req, res: ctx.res };
+          },
         };
       },
     }),

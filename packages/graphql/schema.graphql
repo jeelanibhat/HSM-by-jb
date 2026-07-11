@@ -127,6 +127,7 @@ type Query {
   reservations(status: ReservationStatus): [ReservationGql!]!
   roomTypes: [RoomTypeGql!]!
   rooms: [RoomGql!]!
+  tapeChart(from: String!, to: String!): TapeChartGql!
 }
 
 type RatePlanGql {
@@ -226,6 +227,12 @@ enum RoomStatus {
   VACANT_DIRTY
 }
 
+type RoomStatusChangedGql {
+  number: String!
+  roomId: ID!
+  status: String!
+}
+
 type RoomTypeGql {
   baseOccupancy: Int!
   code: String!
@@ -241,6 +248,58 @@ input SetRatePricesGqlInput {
   ratePlanId: ID!
   roomTypeId: ID!
   to: String!
+}
+
+type Subscription {
+  roomStatusChanged(propertyId: ID!): RoomStatusChangedGql!
+  tapeChartChanged(propertyId: ID!): TapeChartChangedGql!
+}
+
+type TapeChartBlockGql {
+  arrivalDate: String!
+  confirmationNo: String!
+  departureDate: String!
+  guestName: String!
+  reservationId: ID!
+  reservationRoomId: ID!
+  roomId: ID!
+  status: String!
+}
+
+type TapeChartChangedGql {
+  eventType: String!
+  occurredAt: String!
+  reservationId: ID!
+}
+
+type TapeChartGql {
+  blocks: [TapeChartBlockGql!]!
+  dates: [String!]!
+  from: String!
+  rooms: [TapeChartRoomGql!]!
+  to: String!
+  unassigned: [UnassignedBlockGql!]!
+}
+
+type TapeChartRoomGql {
+  floor: String
+  id: ID!
+  number: String!
+  roomTypeCode: String!
+  roomTypeId: ID!
+  status: String!
+}
+
+type UnassignedBlockGql {
+  arrivalDate: String!
+  confirmationNo: String!
+  departureDate: String!
+  guestName: String!
+  reservationId: ID!
+  reservationRoomId: ID!
+  roomTypeCode: String!
+  roomTypeId: ID!
+  status: String!
 }
 
 input UpdateRoomStatusGqlInput {

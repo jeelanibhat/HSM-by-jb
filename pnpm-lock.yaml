@@ -65,6 +65,15 @@ importers:
       graphql:
         specifier: ^16.10.0
         version: 16.14.2
+      graphql-redis-subscriptions:
+        specifier: ^2.7.0
+        version: 2.7.0(graphql-subscriptions@3.0.0(graphql@16.14.2))
+      graphql-subscriptions:
+        specifier: ^3.0.0
+        version: 3.0.0(graphql@16.14.2)
+      graphql-ws:
+        specifier: ^5.16.0
+        version: 5.16.2(graphql@16.14.2)
       helmet:
         specifier: ^8.0.0
         version: 8.2.0
@@ -89,6 +98,9 @@ importers:
       uuidv7:
         specifier: ^1.0.2
         version: 1.2.1
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -163,7 +175,7 @@ importers:
         specifier: ^16.10.0
         version: 16.14.2
       graphql-ws:
-        specifier: ^5.16.0
+        specifier: ^5.16.2
         version: 5.16.2(graphql@16.14.2)
       next:
         specifier: ^15.1.4
@@ -4009,10 +4021,20 @@ packages:
       cosmiconfig-toml-loader:
         optional: true
 
+  graphql-redis-subscriptions@2.7.0:
+    resolution: {integrity: sha512-IK4uCKx1UNhkcnG9lIqFWz9PpltSbuM8RygwGoB/e1HZMuKpAGeqqfHFeLKkQjjubvk4tAdUdx48AUkTAXJ17Q==}
+    peerDependencies:
+      graphql-subscriptions: ^1.0.0 || ^2.0.0 || ^3.0.0
+
   graphql-request@6.1.0:
     resolution: {integrity: sha512-p+XPfS4q7aIpKVcgmnZKhMNqhltk20hfXtkaIkTfjjmiKMJ5xrt5c743cL03y/K7y1rg3WrIC49xGiEQ4mxdNw==}
     peerDependencies:
       graphql: 14 - 16
+
+  graphql-subscriptions@3.0.0:
+    resolution: {integrity: sha512-kZCdevgmzDjGAOqH7GlDmQXYAkuHoKpMlJrqF40HMPhUhM5ZWSFSxCwD/nSi6AkaijmMfsFhoJRGJ27UseCvRA==}
+    peerDependencies:
+      graphql: ^15.7.2 || ^16.0.0
 
   graphql-tag@2.12.6:
     resolution: {integrity: sha512-FdSNcu2QQcWnM2VNvSCCDCVS5PpPqpzgFT8+GXzqJuoDd0CBncxCY278u4mhRO7tMgo2JjgJA5aZ+nWSQ/Z+xg==}
@@ -6966,10 +6988,10 @@ snapshots:
       '@graphql-tools/utils': 10.11.0(graphql@16.14.2)
       '@whatwg-node/disposablestack': 0.0.6
       graphql: 16.14.2
-      graphql-ws: 6.0.8(graphql@16.14.2)(ws@8.20.1)
-      isomorphic-ws: 5.0.0(ws@8.20.1)
+      graphql-ws: 6.0.8(graphql@16.14.2)(ws@8.21.0)
+      isomorphic-ws: 5.0.0(ws@8.21.0)
       tslib: 2.8.1
-      ws: 8.20.1
+      ws: 8.21.0
     transitivePeerDependencies:
       - '@fastify/websocket'
       - bufferutil
@@ -7192,10 +7214,10 @@ snapshots:
       '@whatwg-node/fetch': 0.10.13
       '@whatwg-node/promise-helpers': 1.3.2
       graphql: 16.14.2
-      isomorphic-ws: 5.0.0(ws@8.20.1)
+      isomorphic-ws: 5.0.0(ws@8.21.0)
       sync-fetch: 0.6.0-2
       tslib: 2.8.1
-      ws: 8.20.1
+      ws: 8.21.0
     transitivePeerDependencies:
       - '@fastify/websocket'
       - '@types/node'
@@ -9747,6 +9769,14 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  graphql-redis-subscriptions@2.7.0(graphql-subscriptions@3.0.0(graphql@16.14.2)):
+    dependencies:
+      graphql-subscriptions: 3.0.0(graphql@16.14.2)
+    optionalDependencies:
+      ioredis: 5.11.1
+    transitivePeerDependencies:
+      - supports-color
+
   graphql-request@6.1.0(graphql@16.14.2):
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.2)
@@ -9754,6 +9784,10 @@ snapshots:
       graphql: 16.14.2
     transitivePeerDependencies:
       - encoding
+
+  graphql-subscriptions@3.0.0(graphql@16.14.2):
+    dependencies:
+      graphql: 16.14.2
 
   graphql-tag@2.12.6(graphql@16.14.2):
     dependencies:
@@ -9959,10 +9993,6 @@ snapshots:
 
   isexe@3.1.5: {}
 
-  isomorphic-ws@5.0.0(ws@8.20.1):
-    dependencies:
-      ws: 8.20.1
-
   isomorphic-ws@5.0.0(ws@8.21.0):
     dependencies:
       ws: 8.21.0
@@ -10022,7 +10052,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.2.0
-      ws: 8.20.1
+      ws: 8.21.0
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - bufferutil
