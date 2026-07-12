@@ -5,6 +5,7 @@ import { InventoryModule } from '../inventory';
 import { AvailabilityService } from './application/availability.service';
 import { FrontDeskService } from './application/front-desk.service';
 import { ReservationsService } from './application/reservations.service';
+import { QuoteService } from './application/quote.service';
 import { StayService } from './application/stay.service';
 import { TapeChartService } from './application/tape-chart.service';
 import { FrontDeskResolver } from './graphql/front-desk.resolver';
@@ -19,6 +20,7 @@ import { TapeChartResolver } from './graphql/tape-chart.resolver';
     ReservationsService,
     AvailabilityService,
     StayService,
+    QuoteService,
     TapeChartService,
     FrontDeskService,
     ReservationsResolver,

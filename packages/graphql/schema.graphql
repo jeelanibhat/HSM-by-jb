@@ -316,6 +316,7 @@ type Query {
   myProperties: [PropertyType!]!
   nightAuditRuns: [NightAuditRunGql!]!
   occupancyReport(from: String!, to: String!): [DailyStatsGql!]!
+  quote(arrivalDate: String!, departureDate: String!, ratePlanId: ID!, roomTypeId: ID!): QuoteGql!
   ratePlans: [RatePlanGql!]!
   ratePrices(from: String!, roomTypeId: ID!, to: String!): [RatePriceGql!]!
   reservation(id: ID!): ReservationGql
@@ -324,6 +325,21 @@ type Query {
   rooms: [RoomGql!]!
   searchGuests(query: String!): [GuestGql!]!
   tapeChart(from: String!, to: String!): TapeChartGql!
+}
+
+type QuoteGql {
+  currency: String!
+  nightly: [QuoteNightGql!]!
+  nights: Int!
+  subtotalMinor: Int!
+  taxMinor: Int!
+  totalMinor: Int!
+  unpricedDates: [String!]!
+}
+
+type QuoteNightGql {
+  date: String!
+  priceMinor: Int!
 }
 
 type RatePlanGql {

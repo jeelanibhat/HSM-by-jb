@@ -108,3 +108,28 @@ export class CheckInPayloadGql {
   @Field(() => ReservationGql) reservation!: ReservationGql;
   @Field(() => ID) folioId!: string;
 }
+
+@ObjectType()
+export class QuoteNightGql {
+  @Field() date!: string;
+  @Field(() => Int) priceMinor!: number;
+}
+
+/**
+ * A priced stay, computed SERVER-SIDE.
+ *
+ * The browser does not sum rates or estimate tax. If it did, the quote given at the
+ * desk would eventually disagree with the bill produced at check-out — same numbers,
+ * different rounding — and the guest would be right to be angry.
+ */
+@ObjectType()
+export class QuoteGql {
+  @Field(() => Int) nights!: number;
+  @Field() currency!: string;
+  @Field(() => [QuoteNightGql]) nightly!: QuoteNightGql[];
+  @Field(() => Int) subtotalMinor!: number;
+  @Field(() => Int) taxMinor!: number;
+  @Field(() => Int) totalMinor!: number;
+  /** Nights with no rate loaded. A quote with holes in it is not a quote. */
+  @Field(() => [String]) unpricedDates!: string[];
+}

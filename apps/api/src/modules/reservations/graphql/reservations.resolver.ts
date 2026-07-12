@@ -10,6 +10,7 @@ import type { z, ZodTypeAny } from 'zod';
 import { CurrentUser, PropertyId, Roles } from '../../identity';
 import type { AuthenticatedUser } from '../../identity';
 import { ReservationsService } from '../application/reservations.service';
+import { QuoteService } from '../application/quote.service';
 import { StayService } from '../application/stay.service';
 import {
   AssignRoomGqlInput,
@@ -21,6 +22,7 @@ import {
   ReservationGql,
   ReservationRoomGql,
   ReservationStatusEnum,
+  QuoteGql,
 } from './reservations.types';
 
 function parse<S extends ZodTypeAny>(schema: S, input: unknown): z.output<S> {
@@ -39,6 +41,7 @@ export class ReservationsResolver {
   constructor(
     private readonly service: ReservationsService,
     private readonly stay: StayService,
+    private readonly quotes: QuoteService,
   ) {}
 
   // ── Reads ─────────────────────────────────────────────────────────────────
@@ -51,6 +54,18 @@ export class ReservationsResolver {
     @Args('roomTypeId', { type: () => ID, nullable: true }) roomTypeId?: string,
   ): Promise<AvailabilityGql[]> {
     return this.service.availabilityGrid(propertyId, from, to, roomTypeId);
+  }
+
+  /** Price a stay before booking it. Money maths never happens in the browser. */
+  @Query(() => QuoteGql)
+  async quote(
+    @PropertyId() propertyId: string,
+    @Args('roomTypeId', { type: () => ID }) roomTypeId: string,
+    @Args('ratePlanId', { type: () => ID }) ratePlanId: string,
+    @Args('arrivalDate') arrivalDate: string,
+    @Args('departureDate') departureDate: string,
+  ): Promise<QuoteGql> {
+    return this.quotes.quote(propertyId, roomTypeId, ratePlanId, arrivalDate, departureDate);
   }
 
   @Query(() => ReservationGql, { nullable: true })

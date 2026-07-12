@@ -15,6 +15,11 @@ import { MY_PROPERTIES, type Property } from '@/lib/graphql/operations';
  */
 const NAV: Array<{ href: string; label: string; roles?: string[] }> = [
   { href: '/front-desk', label: 'Front desk' },
+  {
+    href: '/reservations/new',
+    label: 'New booking',
+    roles: ['ADMIN', 'MANAGER', 'FRONT_DESK'],
+  },
   { href: '/tape-chart', label: 'Tape chart' },
   { href: '/rooms', label: 'Rooms' },
   { href: '/night-audit', label: 'Night audit', roles: ['ADMIN', 'MANAGER'] },
