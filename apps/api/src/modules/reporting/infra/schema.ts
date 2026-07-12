@@ -1,10 +1,12 @@
 /**
- * reporting schema — the nightly snapshot (TDD §6 step 4).
+ * reporting schema — the nightly snapshot (TDD §6 step 4, §5.2).
+ *
+ * OWNED BY THE REPORTING MODULE, written by night-audit through its facade.
  *
  * These numbers are FROZEN at audit time, not recomputed on demand. A hotel's
  * occupancy for last Tuesday must not change because someone cancelled a booking
- * today — the trading day is closed, the number was reported, and recomputing it
- * would silently rewrite history that people have already acted on.
+ * today — the trading day is closed, the number was reported to an owner, and
+ * recomputing it would silently rewrite history people have already acted on.
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -39,11 +41,10 @@ export const dailyStats = reportingSchema.table(
 
     /** Room revenue only, NET of tax. Tax is the government's, not the hotel's. */
     roomRevenueMinor: bigint('room_revenue_minor', { mode: 'number' }).notNull(),
-    /** Everything else — F&B, laundry. Also net. */
     otherRevenueMinor: bigint('other_revenue_minor', { mode: 'number' }).notNull().default(0),
     taxMinor: bigint('tax_minor', { mode: 'number' }).notNull().default(0),
 
-    /** Average Daily Rate = room revenue / rooms SOLD. Zero if nothing sold. */
+    /** Average Daily Rate = room revenue / rooms SOLD. */
     adrMinor: bigint('adr_minor', { mode: 'number' }).notNull(),
     /** Revenue Per Available Room = room revenue / rooms AVAILABLE. */
     revparMinor: bigint('revpar_minor', { mode: 'number' }).notNull(),

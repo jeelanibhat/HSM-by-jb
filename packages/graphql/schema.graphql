@@ -91,6 +91,23 @@ input CreateRoomTypeGqlInput {
   name: String!
 }
 
+type DailyRevenueReportGql {
+  adjustments: [RevenueLineGql!]!
+  adjustmentsMinor: Int!
+  businessDate: String!
+  currency: String!
+  grossRevenueMinor: Int!
+  openFolios: Int!
+  otherRevenueMinor: Int!
+  outstandingMinor: Int!
+  payments: [RevenueLineGql!]!
+  paymentsMinor: Int!
+  revenue: [RevenueLineGql!]!
+  roomRevenueMinor: Int!
+  snapshot: DailyStatsGql
+  taxMinor: Int!
+}
+
 type DailyStatsGql {
   adrMinor: Int!
   businessDate: String!
@@ -260,6 +277,7 @@ type Query {
   arrivals(date: String!): [ReservationGql!]!
   availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
   currentProperty: PropertyType
+  dailyRevenueReport(date: String!): DailyRevenueReportGql!
   departures(date: String!): [ReservationGql!]!
   folio(id: ID, reservationId: ID): FolioGql
   guest(id: ID!): GuestGql
@@ -350,6 +368,12 @@ enum ReservationStatus {
 input RevealIdGqlInput {
   guestId: ID!
   reason: String!
+}
+
+type RevenueLineGql {
+  amountMinor: Int!
+  code: String!
+  count: Int!
 }
 
 """A role held at a specific property. There are no global roles."""

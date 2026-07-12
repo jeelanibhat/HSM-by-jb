@@ -17,7 +17,8 @@ import { folioLines, folios } from '../../folio/infra/schema';
 import { ratePrices, rooms } from '../../inventory/infra/schema';
 import { properties, taxes } from '../../property/infra/schema';
 import { reservationRooms, reservations } from '../../reservations/infra/schema';
-import { dailyStats } from '../infra/schema';
+// Through the facade, not the table. The frozen snapshot has one author.
+import { ReportingService } from '../../reporting';
 
 /**
  * The night audit sequence (TDD §6), in order. Each step is idempotent and each
@@ -59,6 +60,7 @@ export class NightAuditService {
   constructor(
     private readonly uow: TransactionalUnitOfWork,
     private readonly tx: TenantTransaction,
+    private readonly reporting: ReportingService,
   ) {}
 
   /**
@@ -441,37 +443,20 @@ export class NightAuditService {
       const revpar = available > 0 ? Math.round(roomRevenue / available) : 0;
       const occupancyBps = available > 0 ? Math.round((sold / available) * 10_000) : 0;
 
-      await u.tx
-        .insert(dailyStats)
-        .values({
-          propertyId: u.propertyId,
-          businessDate: auditDate,
-          roomsAvailable: available,
-          roomsSold: sold,
-          roomsOutOfOrder: outOfOrder,
-          occupancyBps,
-          roomRevenueMinor: roomRevenue,
-          otherRevenueMinor: otherRevenue,
-          taxMinor: taxTotal,
-          adrMinor: adr,
-          revparMinor: revpar,
-        })
-        // Re-running the audit recomputes the same numbers over the same row rather
-        // than creating a second, contradictory snapshot for the same night.
-        .onConflictDoUpdate({
-          target: [dailyStats.propertyId, dailyStats.businessDate],
-          set: {
-            roomsAvailable: available,
-            roomsSold: sold,
-            roomsOutOfOrder: outOfOrder,
-            occupancyBps,
-            roomRevenueMinor: roomRevenue,
-            otherRevenueMinor: otherRevenue,
-            taxMinor: taxTotal,
-            adrMinor: adr,
-            revparMinor: revpar,
-          },
-        });
+      // Written through the reporting facade. Re-running the audit recomputes the
+      // same numbers over the same row rather than creating a second, contradictory
+      // snapshot for the same night.
+      await this.reporting.snapshotDaily(u, auditDate, {
+        roomsAvailable: available,
+        roomsSold: sold,
+        roomsOutOfOrder: outOfOrder,
+        occupancyBps,
+        roomRevenueMinor: roomRevenue,
+        otherRevenueMinor: otherRevenue,
+        taxMinor: taxTotal,
+        adrMinor: adr,
+        revparMinor: revpar,
+      });
 
       u.audit({
         action: 'night_audit.stats_snapshot',
@@ -613,18 +598,6 @@ export class NightAuditService {
     );
   }
 
-  async stats(propertyId: string, from: string, to: string) {
-    return this.tx.run(propertyId, (tx) =>
-      tx
-        .select()
-        .from(dailyStats)
-        .where(
-          and(
-            sql`${dailyStats.businessDate} >= ${from}::date`,
-            sql`${dailyStats.businessDate} <= ${to}::date`,
-          ),
-        )
-        .orderBy(dailyStats.businessDate),
-    );
-  }
+  // Occupancy / ADR / RevPAR reads live in the reporting module — it owns the
+  // frozen snapshot. Night audit writes it and moves on.
 }

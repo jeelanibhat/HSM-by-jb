@@ -1,4 +1,4 @@
-import { Args, Field, ID, Int, Mutation, ObjectType, Query, Resolver } from '@nestjs/graphql';
+import { Field, ID, Mutation, ObjectType, Query, Resolver } from '@nestjs/graphql';
 import { CurrentUser, PropertyId, Roles } from '../../identity';
 import type { AuthenticatedUser } from '../../identity';
 import { NightAuditService } from '../application/night-audit.service';
@@ -28,26 +28,6 @@ export class NightAuditRunGql {
   @Field({ nullable: true }) completedAt?: string;
 }
 
-@ObjectType()
-export class DailyStatsGql {
-  @Field() businessDate!: string;
-  @Field(() => Int) roomsAvailable!: number;
-  @Field(() => Int) roomsSold!: number;
-  @Field(() => Int) roomsOutOfOrder!: number;
-
-  /** Basis points — 8543 = 85.43%. */
-  @Field(() => Int) occupancyBps!: number;
-
-  @Field(() => Int) roomRevenueMinor!: number;
-  @Field(() => Int) otherRevenueMinor!: number;
-  @Field(() => Int) taxMinor!: number;
-
-  /** Average Daily Rate — room revenue / rooms SOLD. */
-  @Field(() => Int) adrMinor!: number;
-  /** Revenue Per Available Room — room revenue / rooms AVAILABLE. */
-  @Field(() => Int) revparMinor!: number;
-}
-
 @Resolver()
 export class NightAuditResolver {
   constructor(private readonly audit: NightAuditService) {}
@@ -56,8 +36,8 @@ export class NightAuditResolver {
    * Run (or resume) the night audit.
    *
    * MANAGER and above only. It posts charges to every in-house guest and moves the
-   * property's business date — the two things that a mistake here makes very hard to
-   * undo. AUDITOR is read-only by definition and FRONT_DESK does not close the books.
+   * property's business date — the two things a mistake here makes hardest to undo.
+   * AUDITOR is read-only by definition; FRONT_DESK does not close the books.
    */
   @Roles('ADMIN', 'MANAGER')
   @Mutation(() => NightAuditPayloadGql)
@@ -75,16 +55,5 @@ export class NightAuditResolver {
   @Query(() => [NightAuditRunGql])
   async nightAuditRuns(@PropertyId() propertyId: string): Promise<NightAuditRunGql[]> {
     return (await this.audit.history(propertyId)) as unknown as NightAuditRunGql[];
-  }
-
-  /** Occupancy / ADR / RevPAR, frozen at audit time (TDD §5.2). */
-  @Roles('ADMIN', 'MANAGER', 'AUDITOR')
-  @Query(() => [DailyStatsGql])
-  async occupancyReport(
-    @PropertyId() propertyId: string,
-    @Args('from') from: string,
-    @Args('to') to: string,
-  ): Promise<DailyStatsGql[]> {
-    return (await this.audit.stats(propertyId, from, to)) as unknown as DailyStatsGql[];
   }
 }
