@@ -2,12 +2,24 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
   "globalDependencies": [".env"],
+
+  // Turbo runs tasks in STRICT env mode: a variable not listed here does not reach
+  // the task at all. On a dev box that is invisible — the .env file supplies
+  // everything anyway — but CI has no .env, so anything missing from this list is
+  // simply gone. That is how the PII keys silently vanished on the first CI run.
+  //
+  // Anything the app's env schema requires belongs here.
   "globalEnv": [
     "NODE_ENV",
+    "CI",
     "DATABASE_URL",
+    "DATABASE_MIGRATION_URL",
     "VALKEY_URL",
     "JWT_ACCESS_SECRET",
     "JWT_REFRESH_SECRET",
+    "PII_ENCRYPTION_KEY",
+    "PII_HASH_KEY",
+    "LOG_LEVEL",
     "NEXT_PUBLIC_GRAPHQL_URL"
   ],
   "tasks": {
