@@ -26,3 +26,6 @@ Thumbs.db
 e2e/.auth/
 e2e/test-results/
 e2e/playwright-report/
+
+# Internal design doc — kept locally, never in the public repo.
+hotel-pms-tech-design.md
