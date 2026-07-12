@@ -138,6 +138,17 @@ export const folioLines = folioSchema.table(
     /** Which module posted this — reservations, folio, night-audit, pos. */
     sourceModule: varchar('source_module', { length: 32 }).notNull().default('folio'),
 
+    /**
+     * Set on a night-audit ROOM charge, naming the room-night it pays for.
+     *
+     * It exists to carry a unique index: one room charge per reservation-room per
+     * business date. That is what makes a re-run of the night audit physically
+     * incapable of charging a guest twice for the same night — which is the single
+     * worst thing a night audit can do, and the thing an operator re-running it at
+     * 3am after a failure is most afraid of.
+     */
+    reservationRoomId: uuid('reservation_room_id'),
+
     postedBy: uuid('posted_by'),
 
     /**

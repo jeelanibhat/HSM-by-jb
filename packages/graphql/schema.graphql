@@ -12,6 +12,13 @@ input AssignRoomGqlInput {
   roomId: ID!
 }
 
+type AuditStepGql {
+  at: String!
+  detail: String
+  status: String!
+  step: String!
+}
+
 type AuthPayload {
   accessToken: String!
   user: UserType!
@@ -82,6 +89,19 @@ input CreateRoomTypeGqlInput {
   description: String
   maxOccupancy: Int!
   name: String!
+}
+
+type DailyStatsGql {
+  adrMinor: Int!
+  businessDate: String!
+  occupancyBps: Int!
+  otherRevenueMinor: Int!
+  revparMinor: Int!
+  roomRevenueMinor: Int!
+  roomsAvailable: Int!
+  roomsOutOfOrder: Int!
+  roomsSold: Int!
+  taxMinor: Int!
 }
 
 type FolioBalanceGql {
@@ -181,10 +201,26 @@ type Mutation {
   postPayment(input: PostPaymentGqlInput!): FolioBalanceGql!
   refreshToken: AuthPayload!
   revealIdNumber(input: RevealIdGqlInput!): String!
+  runNightAudit: NightAuditPayloadGql!
   setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
   voidFolioLine(input: VoidLineGqlInput!): FolioBalanceGql!
+}
+
+type NightAuditPayloadGql {
+  businessDate: String!
+  newBusinessDate: String
+  runId: ID!
+  status: String!
+  steps: [AuditStepGql!]!
+}
+
+type NightAuditRunGql {
+  businessDate: String!
+  completedAt: String
+  id: ID!
+  status: String!
 }
 
 input PostChargeGqlInput {
@@ -232,6 +268,8 @@ type Query {
   health: Health!
   me: UserType!
   myProperties: [PropertyType!]!
+  nightAuditRuns: [NightAuditRunGql!]!
+  occupancyReport(from: String!, to: String!): [DailyStatsGql!]!
   ratePlans: [RatePlanGql!]!
   ratePrices(from: String!, roomTypeId: ID!, to: String!): [RatePriceGql!]!
   reservation(id: ID!): ReservationGql

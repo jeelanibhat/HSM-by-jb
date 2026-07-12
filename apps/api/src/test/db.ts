@@ -16,17 +16,34 @@ const OWNER_URL =
   process.env['DATABASE_MIGRATION_URL'] ?? 'postgresql://hotelos:hotelos@localhost:5432/hotelos';
 
 /**
+ * The SAME type overrides the app installs (see DbModule).
+ *
+ * Without these, a test's raw client gets a Postgres DATE back as a JS Date in the
+ * server's local timezone — the exact bug §6 exists to prevent. A test would then
+ * be asserting on a value the application never sees, and the two would disagree
+ * about what "2026-07-11" means somewhere around midnight.
+ */
+const TYPES = {
+  date: {
+    to: 1082,
+    from: [1082],
+    serialize: (v: string) => v,
+    parse: (v: string) => v, // business dates stay strings, always
+  },
+} as const;
+
+/**
  * Connects as the UNPRIVILEGED runtime role — the whole point. Connecting these
- * tests as the owner would make every RLS assertion below pass vacuously, which
- * is exactly the trap that hid the bug in the first place.
+ * tests as the owner would make every RLS assertion pass vacuously, which is
+ * exactly the trap that hid the superuser bug in the first place.
  */
 export function appClient(): postgres.Sql {
-  return postgres(APP_URL, { max: 2, onnotice: () => {} });
+  return postgres(APP_URL, { max: 2, onnotice: () => {}, types: TYPES as never });
 }
 
 /** Owner connection. Seeding and teardown only — never the subject of a test. */
 export function ownerClient(): postgres.Sql {
-  return postgres(OWNER_URL, { max: 2, onnotice: () => {} });
+  return postgres(OWNER_URL, { max: 2, onnotice: () => {}, types: TYPES as never });
 }
 
 export function appDb(client: postgres.Sql) {
