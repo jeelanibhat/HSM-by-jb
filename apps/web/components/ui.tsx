@@ -232,16 +232,45 @@ export function Select({
   );
 }
 
-export function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+/**
+ * A REAL <label>, not a styled span.
+ *
+ * The span version rendered identically and was completely invisible to a screen
+ * reader — the input it sat above had no accessible name at all. Playwright's
+ * getByLabel could not find it either, which is the same failure wearing a different
+ * hat: if a test cannot find a field by its label, neither can a blind receptionist.
+ *
+ * `htmlFor` is required when the input is a sibling. Use <Field> when it is a child.
+ */
+export function Label({
+  children,
+  htmlFor,
+  className,
+}: {
+  children: React.ReactNode;
+  htmlFor?: string | undefined;
+  className?: string | undefined;
+}) {
   return (
-    <span
-      className={cn('mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted', className)}
+    <label
+      htmlFor={htmlFor}
+      className={cn(
+        'mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted',
+        className,
+      )}
     >
       {children}
-    </span>
+    </label>
   );
 }
 
+/**
+ * Label + control, with IMPLICIT association — the control is a child of the <label>,
+ * so no id/htmlFor pair is needed and it cannot drift out of sync.
+ *
+ * The text is a <span>, not a <Label>: a <label> inside a <label> is invalid HTML and
+ * browsers resolve the nesting unpredictably.
+ */
 export function Field({
   label,
   children,
@@ -253,7 +282,9 @@ export function Field({
 }) {
   return (
     <label className={cn('block', className)}>
-      <Label>{label}</Label>
+      <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -338,7 +369,11 @@ export function Alert({
     >
       <div className="flex-1">{children}</div>
       {onDismiss && (
-        <button onClick={onDismiss} className="shrink-0 opacity-60 hover:opacity-100">
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="shrink-0 opacity-60 hover:opacity-100"
+        >
           <Icon.Close className="h-4 w-4" />
         </button>
       )}

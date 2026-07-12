@@ -20,3 +20,9 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright: storageState holds real refresh tokens. Never commit them.
+# (The suite does not use it — tokens rotate; see e2e/support/global-setup.ts.)
+e2e/.auth/
+e2e/test-results/
+e2e/playwright-report/

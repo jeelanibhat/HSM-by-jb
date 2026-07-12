@@ -75,7 +75,11 @@ export function FolioPanel({
             )}
           </div>
 
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink"
+          >
             <Icon.Close />
           </button>
         </header>

@@ -283,7 +283,10 @@ function DeskRowView({
 
         <Td align="right">
           <div className="flex items-center justify-end gap-2">
-            {row.folioId && (
+            {/* The server redacts folioId entirely for roles that may not touch
+                cashiering, so this is already absent for housekeeping — but gate it
+                explicitly too, so the intent is readable at the call site. */}
+            {row.folioId && canOperate && (
               <Button variant="outline" size="sm" onClick={onOpenFolio}>
                 Folio
               </Button>

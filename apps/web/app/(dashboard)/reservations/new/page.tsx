@@ -278,9 +278,15 @@ export default function NewReservationPage() {
                     : 'border-line'
                 } ${soldOut ? 'cursor-not-allowed opacity-40' : ''}`}
               >
+                {/* Name it explicitly. Composed from the spans, the accessible name comes
+                    out as "Suite SUITE up to 4 3 free" — which is what a screen reader
+                    would read aloud, and it is not a sentence. */}
                 <input
                   type="radio"
                   name="roomType"
+                  aria-label={`${t.name} ${t.code}, up to ${t.maxOccupancy} guests, ${
+                    !validDates ? 'choose dates first' : soldOut ? 'sold out' : `${free} free`
+                  }`}
                   disabled={soldOut}
                   checked={roomTypeId === t.id}
                   onChange={() => setRoomTypeId(t.id)}

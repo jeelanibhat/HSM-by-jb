@@ -818,6 +818,55 @@ describe('check-out refuses an unsettled folio', () => {
 });
 
 describe('RBAC — housekeeping cannot access cashiering (E2E case 6)', () => {
+  /**
+   * The folio query was open to every authenticated user until the E2E suite noticed
+   * a folio button appearing for a housekeeper. A guest's bill is a financial record —
+   * what they ate, what they drank, what they still owe. Housekeeping needs to know
+   * which rooms to clean, not what the guest spent at the bar.
+   */
+  it('refuses housekeeping READING a folio at all', async () => {
+    const stay = await stayCheckedIn();
+
+    const res = await gql(FOLIO, { id: stay.folioId }, tok['housekeeping']);
+    expect(res.body.errors[0].message).toMatch(/insufficient permissions/i);
+  });
+
+  it('redacts the folio id and balance from the front-desk board for housekeeping', async () => {
+    const stay = await stayCheckedIn();
+    await gql(CHARGE, {
+      i: {
+        folioId: stay.folioId,
+        code: 'ROOM',
+        description: 'Room',
+        amountMinor: 350_000,
+        quantity: 1,
+        currency: 'INR',
+      },
+    });
+
+    const BOARD = `
+      query($d: String!) {
+        frontDeskBoard(date: $d) { inHouse { guestName folioId balanceMinor } }
+      }
+    `;
+
+    // The front desk sees the money...
+    const desk = await gql(BOARD, { d: '2026-07-12' }, tok['frontdesk']);
+    const deskRow = desk.body.data.frontDeskBoard.inHouse[0];
+    expect(deskRow.folioId).toBeTruthy();
+    expect(deskRow.balanceMinor).toBe(392_000);
+
+    // ...housekeeping sees the guest, but not a rupee of it. Redacted SERVER-side: a
+    // field the client is trusted to hide is a field that leaks the moment somebody
+    // opens the network tab.
+    const hk = await gql(BOARD, { d: '2026-07-12' }, tok['housekeeping']);
+    const hkRow = hk.body.data.frontDeskBoard.inHouse[0];
+
+    expect(hkRow.guestName).toBeTruthy(); // they still need to know who is in-house
+    expect(hkRow.folioId).toBeNull();
+    expect(hkRow.balanceMinor).toBe(0);
+  });
+
   it('refuses housekeeping posting a charge', async () => {
     const stay = await stayCheckedIn();
 

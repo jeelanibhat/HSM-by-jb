@@ -118,7 +118,16 @@ export class FolioResolver {
   /**
    * Fetch by folio id, or by the reservation it belongs to — the front desk almost
    * always has the latter, having just pulled up the guest's stay.
+   *
+   * ROLE-GATED, and it must be. A folio is a guest's financial record: what they ate,
+   * what they drank, what they paid, what they still owe. HOUSEKEEPING has no business
+   * reading it — they need to know which rooms to clean, not what the guest spent at
+   * the bar. AUDITOR does, because reading the books is the entire job.
+   *
+   * This was open to every authenticated user until the E2E suite noticed the folio
+   * button appearing for a housekeeper.
    */
+  @Roles('ADMIN', 'MANAGER', 'FRONT_DESK', 'AUDITOR')
   @Query(() => FolioGql, { nullable: true, name: 'folio' })
   async folio_(
     @PropertyId() propertyId: string,

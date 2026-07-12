@@ -73,26 +73,30 @@ infra/
   postgres/init/   extensions run at container init (btree_gist, pgcrypto, citext)
 ```
 
-## Outstanding: one contract migration
+## Expand → migrate → contract, worked through
 
-`guests.id_number` (the old plaintext column) still exists, empty and unread.
+Guest ID numbers moved from a plaintext `guests.id_number` column to AES-256-GCM
+ciphertext + an HMAC blind index. That was shipped in three releases, never one —
+TDD §10: *"never destructive in one release"*.
 
-This release is the **expand** half of expand → migrate → contract (TDD §10: *"never
-destructive in one release"*). Dropping the column in the same migration that added
-the encrypted ones would have broken any replica still running the previous build
-mid-deploy.
+| | migration | what it did |
+|---|---|---|
+| **expand**   | `0010` | added `id_number_{encrypted,hash,masked}`; both columns live |
+| **migrate**  | —      | writes go through `PiiCipher`; nothing reads the old column |
+| **contract** | `0017` | drops `id_number` |
 
-Once every replica is on this build, ship the contract step:
+`0017` is guarded: it counts the rows still holding plaintext and **raises** rather
+than dropping them. A contract migration that destroys un-migrated data is not a
+migration, it is an incident. If that guard ever fires, backfill through `PiiCipher`
+(application-side — it cannot be encrypted in SQL, which is the whole point; see
+`pii-cipher.ts`) and re-run.
 
-```sql
-ALTER TABLE guests.guests DROP COLUMN id_number;
-```
+## Back up `PII_ENCRYPTION_KEY` somewhere that is not the database backup
 
-...and delete `idNumberLegacy` from `modules/guests/infra/schema.ts`.
-
-**If you ever have real plaintext in that column**, it must be backfilled through
-`PiiCipher` (application-side) *before* the drop — it cannot be encrypted in SQL,
-which is the whole point (see `pii-cipher.ts`).
+The ciphertext is worthless without the key, which is the entire security property —
+a stolen dump yields nothing. It also means **losing the key loses every guest ID
+number**, permanently, with the database perfectly intact. Store it in a secret
+manager, not in the same bucket as the dumps.
 
 ## Non-negotiables
 

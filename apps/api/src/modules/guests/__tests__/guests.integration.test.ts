@@ -110,8 +110,12 @@ describe('encryption at rest — the whole point', () => {
       'the passport number is sitting in plaintext in the database',
     ).toBe(false);
 
-    // The legacy plaintext column must not be written any more.
-    expect(row['id_number']).toBeNull();
+    // The legacy plaintext column is gone entirely — migration 0017 contracted it away.
+    // Not "empty": ABSENT. An empty column is one careless INSERT from being full again.
+    expect(
+      Object.keys(row),
+      'the plaintext id_number column is back',
+    ).not.toContain('id_number');
 
     expect(row['id_number_encrypted']).toBeTruthy();
     expect(String(row['id_number_encrypted'])).toMatch(/^v1:/);

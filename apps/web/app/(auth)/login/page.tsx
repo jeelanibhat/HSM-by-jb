@@ -89,7 +89,7 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} noValidate className="mt-7 space-y-4">
             <div>
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -99,13 +99,11 @@ export default function LoginPage() {
                 invalid={Boolean(errors.email)}
                 {...register('email')}
               />
-              {errors.email && (
-                <p className="mt-1 text-xs text-danger">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
             </div>
 
             <div>
-              <Label>Password</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"

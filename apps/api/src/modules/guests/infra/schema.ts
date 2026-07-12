@@ -35,17 +35,6 @@ export const guests = guestsSchema.table(
     idType: varchar('id_type', { length: 32 }),
 
     /**
-     * DEPRECATED — the old plaintext column. Kept only so this release is the
-     * EXPAND step of expand → migrate → contract (TDD §10: "never destructive in
-     * one release"). Dropping it in the same migration that adds the encrypted
-     * columns would break any replica still running the previous build mid-deploy.
-     *
-     * Nothing reads or writes it any more. It is dropped in the contract migration
-     * once every replica is on this build.
-     */
-    idNumberLegacy: varchar('id_number', { length: 64 }),
-
-    /**
      * Passport / Aadhaar / licence number, AES-256-GCM encrypted (TDD §9).
      *
      * Postgres never sees the plaintext — encryption happens in the application
