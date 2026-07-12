@@ -55,25 +55,30 @@ export interface RoomType {
  * chart (TDD §7.2) — a room that reads "dirty" on one screen and "clean" on
  * another is how rooms get double-sold.
  */
-export const STATUS_STYLE: Record<RoomStatus, { label: string; className: string }> = {
+export const STATUS_STYLE: Record<RoomStatus, { label: string; short: string; className: string }> = {
   VACANT_CLEAN: {
     label: 'Vacant clean',
-    className: 'bg-status-vacant-clean/15 text-status-vacant-clean border-status-vacant-clean/30',
+    short: 'Clean',
+    className: 'bg-status-vacant-clean/10 text-status-vacant-clean border-status-vacant-clean/25',
   },
   VACANT_DIRTY: {
     label: 'Vacant dirty',
-    className: 'bg-status-vacant-dirty/15 text-status-vacant-dirty border-status-vacant-dirty/30',
+    short: 'Dirty',
+    className: 'bg-status-vacant-dirty/10 text-status-vacant-dirty border-status-vacant-dirty/25',
   },
   OCCUPIED: {
     label: 'Occupied',
-    className: 'bg-status-occupied/15 text-status-occupied border-status-occupied/30',
+    short: 'Occupied',
+    className: 'bg-status-occupied/10 text-status-occupied border-status-occupied/25',
   },
   OOO: {
     label: 'Out of order',
-    className: 'bg-status-ooo/15 text-status-ooo border-status-ooo/30',
+    short: 'OOO',
+    className: 'bg-status-ooo/10 text-status-ooo border-status-ooo/25',
   },
   OOS: {
     label: 'Out of service',
-    className: 'bg-status-oos/15 text-status-oos border-status-oos/30',
+    short: 'OOS',
+    className: 'bg-status-oos/10 text-status-oos border-status-oos/25',
   },
 };

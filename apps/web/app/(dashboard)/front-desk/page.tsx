@@ -3,7 +3,21 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { useState } from 'react';
 import { FolioPanel } from '@/components/folio-panel';
+import { Icon } from '@/components/icons';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Spinner,
+  Table,
+  Td,
+  Th,
+} from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { cn } from '@/lib/cn';
 import { formatMinor } from '@/lib/money';
 import {
   AVAILABLE_ROOMS,
@@ -17,10 +31,16 @@ import { CURRENT_PROPERTY, type Property } from '@/lib/graphql/operations';
 
 type Tab = 'arrivals' | 'departures' | 'inHouse';
 
+const TABS: Array<{ key: Tab; label: string }> = [
+  { key: 'arrivals', label: 'Arrivals' },
+  { key: 'departures', label: 'Departures' },
+  { key: 'inHouse', label: 'In house' },
+];
+
 /**
- * The front desk. Arrivals, departures, who is in the building.
+ * The front desk.
  *
- * Everything is keyed on the property's BUSINESS DATE, not on today's calendar date
+ * Everything is keyed on the property's BUSINESS DATE, not today's calendar date
  * (TDD §6). A clerk working at 01:00 is still working yesterday's trading day, and
  * the arrivals list must show yesterday's arrivals — not tomorrow's.
  */
@@ -35,7 +55,12 @@ export default function FrontDeskPage() {
   const currency = prop?.currentProperty?.currency ?? 'INR';
 
   const { data, loading, refetch } = useQuery<{
-    frontDeskBoard: { businessDate: string; arrivals: DeskRow[]; departures: DeskRow[]; inHouse: DeskRow[] };
+    frontDeskBoard: {
+      businessDate: string;
+      arrivals: DeskRow[];
+      departures: DeskRow[];
+      inHouse: DeskRow[];
+    };
   }>(FRONT_DESK_BOARD, {
     variables: { date: businessDate },
     skip: !businessDate,
@@ -54,99 +79,95 @@ export default function FrontDeskPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Front desk</h1>
-          <p className="mt-1 text-sm opacity-60">
-            Business date <strong className="font-medium">{businessDate ?? '…'}</strong>
-            <span className="ml-2 text-xs opacity-70">
-              (moves only at night audit — not today&apos;s calendar date)
-            </span>
-          </p>
+    <>
+      <PageHeader
+        title="Front desk"
+        crumb="General"
+        action={
+          <span className="hidden items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-[11px] font-medium text-brand sm:inline-flex">
+            <Icon.Calendar className="h-3.5 w-3.5" />
+            {businessDate ?? '…'}
+          </span>
+        }
+      />
+
+      <Card padded={false}>
+        <div className="flex gap-1 border-b border-line px-4 sm:px-5">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                '-mb-px flex items-center gap-2 border-b-2 px-3 py-3.5 text-[13px] transition-colors',
+                tab === t.key
+                  ? 'border-brand font-medium text-brand'
+                  : 'border-transparent text-muted hover:text-ink',
+              )}
+            >
+              {t.label}
+              <span
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+                  tab === t.key ? 'bg-brand-50 text-brand' : 'bg-line text-muted',
+                )}
+              >
+                {counts[t.key]}
+              </span>
+            </button>
+          ))}
         </div>
-      </div>
 
-      <div className="flex gap-1 border-b border-black/10 dark:border-white/10">
-        {(
-          [
-            ['arrivals', 'Arrivals'],
-            ['departures', 'Departures'],
-            ['inHouse', 'In house'],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-              tab === key
-                ? 'border-status-occupied font-medium text-status-occupied'
-                : 'border-transparent opacity-60 hover:opacity-100'
-            }`}
-          >
-            {label}
-            <span className="ml-1.5 rounded bg-black/5 px-1.5 py-0.5 text-[10px] tabular-nums dark:bg-white/10">
-              {counts[key]}
-            </span>
-          </button>
-        ))}
-      </div>
+        <div className="p-4 sm:p-5">
+          {message && (
+            <div className="mb-4">
+              <Alert
+                tone={message.kind === 'ok' ? 'success' : 'danger'}
+                onDismiss={() => setMessage(null)}
+              >
+                {message.text}
+              </Alert>
+            </div>
+          )}
 
-      {message && (
-        <div
-          role="status"
-          className={`rounded-md px-3 py-2 text-sm ${
-            message.kind === 'ok'
-              ? 'bg-status-vacant-clean/15 text-status-vacant-clean'
-              : 'bg-status-ooo/15 text-status-ooo'
-          }`}
-        >
-          {message.text}
-          <button onClick={() => setMessage(null)} className="ml-3 text-xs underline">
-            dismiss
-          </button>
+          {loading && !board && <Spinner />}
+
+          {board && rows.length === 0 && (
+            <EmptyState>
+              {tab === 'arrivals' && 'Nobody due to arrive today.'}
+              {tab === 'departures' && 'Nobody due to leave today.'}
+              {tab === 'inHouse' && 'The hotel is empty.'}
+            </EmptyState>
+          )}
+
+          {rows.length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Guest</Th>
+                  <Th>Room</Th>
+                  <Th>Stay</Th>
+                  <Th align="right">Balance</Th>
+                  <Th align="right">Action</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <DeskRowView
+                    key={row.reservationRoomId}
+                    row={row}
+                    tab={tab}
+                    currency={currency}
+                    canOperate={canOperate}
+                    onRefetch={() => void refetch()}
+                    onMessage={setMessage}
+                    onOpenFolio={() => setOpenFolio(row)}
+                  />
+                ))}
+              </tbody>
+            </Table>
+          )}
         </div>
-      )}
-
-      {loading && !board && <p className="text-sm opacity-60">Loading…</p>}
-
-      {board && rows.length === 0 && (
-        <p className="rounded-md border border-dashed border-black/15 px-4 py-8 text-center text-sm opacity-60 dark:border-white/15">
-          {tab === 'arrivals' && 'Nobody due to arrive today.'}
-          {tab === 'departures' && 'Nobody due to leave today.'}
-          {tab === 'inHouse' && 'The hotel is empty.'}
-        </p>
-      )}
-
-      {rows.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-black/10 dark:border-white/10">
-          <table className="w-full text-sm">
-            <thead className="bg-black/[0.02] text-left text-[10px] uppercase tracking-wide opacity-50 dark:bg-white/[0.03]">
-              <tr>
-                <th className="px-3 py-2 font-medium">Guest</th>
-                <th className="px-3 py-2 font-medium">Room</th>
-                <th className="px-3 py-2 font-medium">Stay</th>
-                <th className="px-3 py-2 text-right font-medium">Balance</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <DeskRowView
-                  key={row.reservationRoomId}
-                  row={row}
-                  tab={tab}
-                  currency={currency}
-                  canOperate={canOperate}
-                  onRefetch={() => void refetch()}
-                  onMessage={setMessage}
-                  onOpenFolio={() => setOpenFolio(row)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      </Card>
 
       {openFolio?.folioId && (
         <FolioPanel
@@ -159,7 +180,7 @@ export default function FrontDeskPage() {
           onSettled={() => void refetch()}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -197,7 +218,10 @@ function DeskRowView({
   const doCheckOut = async () => {
     try {
       await checkOut({ variables: { reservationId: row.reservationId } });
-      onMessage({ kind: 'ok', text: `${row.guestName} checked out. Room ${row.roomNumber} is now dirty.` });
+      onMessage({
+        kind: 'ok',
+        text: `${row.guestName} checked out. Room ${row.roomNumber} is now dirty.`,
+      });
       onRefetch();
     } catch (e) {
       // The server refuses check-out on a non-zero balance and says how much is
@@ -207,97 +231,101 @@ function DeskRowView({
   };
 
   const owes = row.balanceMinor > 0;
+  const initials = row.guestName
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('');
 
   return (
     <>
-      <tr className="border-t border-black/5 dark:border-white/5">
-        <td className="px-3 py-2.5">
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium">{row.guestName}</span>
-            {row.vip && (
-              <span className="rounded bg-status-vacant-dirty/20 px-1 text-[9px] font-medium text-status-vacant-dirty">
-                VIP
-              </span>
-            )}
+      <tr className="group">
+        <Td>
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-semibold text-brand">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-[13px] font-medium">{row.guestName}</span>
+                {row.vip && <Badge tone="warning">VIP</Badge>}
+              </div>
+              <p className="text-[11px] text-muted">
+                {row.confirmationNo} · {row.adults + row.children} guest
+                {row.adults + row.children > 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
-          <div className="text-[11px] opacity-50">
-            {row.confirmationNo} · {row.adults + row.children} guest
-            {row.adults + row.children > 1 ? 's' : ''}
-          </div>
-        </td>
+        </Td>
 
-        <td className="px-3 py-2.5">
+        <Td>
           {row.roomNumber ? (
-            <span className="tabular-nums">{row.roomNumber}</span>
+            <span className="text-[13px] font-medium tabular-nums">{row.roomNumber}</span>
           ) : (
-            <span className="text-xs text-status-ooo">unassigned</span>
+            <Badge tone="danger">unassigned</Badge>
           )}
-          <span className="ml-1.5 text-[10px] opacity-40">{row.roomTypeCode}</span>
-        </td>
+          <span className="ml-1.5 text-[11px] text-muted">{row.roomTypeCode}</span>
+        </Td>
 
-        <td className="px-3 py-2.5 text-xs tabular-nums opacity-70">
+        <Td className="text-[12px] tabular-nums text-muted">
           {row.arrivalDate.slice(5)} → {row.departureDate.slice(5)}
-        </td>
+        </Td>
 
-        <td
-          className={`px-3 py-2.5 text-right text-sm tabular-nums ${
-            owes ? 'text-status-ooo' : row.folioId ? 'text-status-vacant-clean' : 'opacity-40'
-          }`}
+        <Td
+          align="right"
+          className={cn(
+            'text-[13px] font-medium tabular-nums',
+            owes ? 'text-danger' : row.folioId ? 'text-success' : 'text-muted/50',
+          )}
         >
           {row.folioId ? formatMinor(row.balanceMinor, currency) : '—'}
-        </td>
+        </Td>
 
-        <td className="px-3 py-2.5 text-right">
+        <Td align="right">
           <div className="flex items-center justify-end gap-2">
             {row.folioId && (
-              <button
-                onClick={onOpenFolio}
-                className="text-xs underline underline-offset-2 opacity-60 hover:opacity-100"
-              >
+              <Button variant="outline" size="sm" onClick={onOpenFolio}>
                 Folio
-              </button>
+              </Button>
             )}
 
-            {canOperate && tab === 'arrivals' && (
-              row.roomId ? (
-                <button
-                  onClick={() => void doCheckIn()}
-                  disabled={checkingIn}
-                  className="rounded bg-status-occupied px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
-                >
+            {canOperate &&
+              tab === 'arrivals' &&
+              (row.roomId ? (
+                <Button size="sm" onClick={() => void doCheckIn()} disabled={checkingIn}>
                   {checkingIn ? '…' : 'Check in'}
-                </button>
+                </Button>
               ) : (
                 // Check-in without a room is refused by the server. Offer the fix
                 // instead of a button that only exists to fail.
-                <button
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-danger/40 text-danger"
                   onClick={() => setAssigning(true)}
-                  className="rounded border border-status-ooo/40 px-2.5 py-1 text-xs font-medium text-status-ooo"
                 >
                   Assign room
-                </button>
-              )
-            )}
+                </Button>
+              ))}
 
             {canOperate && tab !== 'arrivals' && row.status === 'CHECKED_IN' && (
-              <button
+              <Button
+                size="sm"
+                variant={owes ? 'outline' : 'success'}
                 onClick={() => void doCheckOut()}
                 disabled={checkingOut}
                 title={owes ? 'The folio must be settled first' : undefined}
-                className={`rounded px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 ${
-                  owes ? 'bg-black/25 dark:bg-white/25' : 'bg-status-vacant-clean'
-                }`}
               >
                 {checkingOut ? '…' : 'Check out'}
-              </button>
+              </Button>
             )}
           </div>
-        </td>
+        </Td>
       </tr>
 
       {assigning && (
         <tr>
-          <td colSpan={5} className="px-3 pb-3">
+          <td colSpan={5} className="pb-3">
             <AssignRoomPicker
               row={row}
               onDone={() => {
@@ -331,10 +359,10 @@ function AssignRoomPicker({
   const [assign, { loading }] = useMutation(ASSIGN_ROOM);
 
   /**
-   * The server rejects a room of the wrong type and an out-of-order room. Filter
-   * here too — a clerk should not be offered a choice that can only fail.
+   * The server rejects a room of the wrong type and an out-of-order room, so filter
+   * those out — a clerk should not be offered a choice that can only fail.
    *
-   * A room already booked for overlapping dates is NOT filtered out: the exclusion
+   * A room already booked for overlapping dates is NOT filtered: the exclusion
    * constraint decides that, and it needs the dates to do so. Clicking such a room
    * gets a precise answer — "Room 101 is already booked for overlapping dates" —
    * which is more useful than the room silently not appearing.
@@ -345,39 +373,39 @@ function AssignRoomPicker({
 
   const pick = async (roomId: string) => {
     try {
-      await assign({
-        variables: { input: { reservationRoomId: row.reservationRoomId, roomId } },
-      });
+      await assign({ variables: { input: { reservationRoomId: row.reservationRoomId, roomId } } });
       onDone();
     } catch (e) {
-      // The exclusion constraint speaks here: "Room 101 is already booked for
-      // overlapping dates."
       onError(e instanceof Error ? e.message : 'Could not assign that room');
     }
   };
 
   return (
-    <div className="rounded bg-black/[0.03] p-2.5 dark:bg-white/[0.05]">
-      <p className="mb-2 text-[11px] opacity-70">
-        Rooms of type <strong>{row.roomTypeCode}</strong> that are not out of order:
+    <div className="rounded-lg bg-canvas p-3">
+      <p className="mb-2 text-[11px] text-muted">
+        Rooms of type <strong className="font-semibold text-ink">{row.roomTypeCode}</strong> that
+        are not out of order:
       </p>
+
       <div className="flex flex-wrap gap-1.5">
         {candidates.length === 0 && (
-          <span className="text-xs text-status-ooo">No sellable rooms of this type.</span>
+          <span className="text-xs text-danger">No sellable rooms of this type.</span>
         )}
+
         {candidates.map((r) => (
           <button
             key={r.id}
             onClick={() => void pick(r.id)}
             disabled={loading}
-            className="rounded border border-black/15 px-2 py-1 text-xs tabular-nums hover:bg-black/5 disabled:opacity-40 dark:border-white/20 dark:hover:bg-white/10"
+            className="rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs font-medium tabular-nums transition-colors hover:border-brand hover:text-brand disabled:opacity-40"
           >
             {r.number}
           </button>
         ))}
-        <button onClick={onCancel} className="px-2 text-xs opacity-60 hover:opacity-100">
+
+        <Button variant="ghost" size="sm" onClick={onCancel} className="ml-auto">
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );

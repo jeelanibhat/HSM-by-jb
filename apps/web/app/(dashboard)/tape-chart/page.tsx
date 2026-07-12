@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useSubscription } from '@apollo/client';
 import { useCallback, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
 import {
   ASSIGN_ROOM,
@@ -126,10 +127,10 @@ export default function TapeChartPage() {
     [dragging, canAssign, assignRoom, refetch],
   );
 
-  if (loading && !chart) return <p className="text-sm opacity-60">Loading chart…</p>;
+  if (loading && !chart) return <p className="text-sm text-muted">Loading chart…</p>;
   if (error) {
     return (
-      <div className="rounded-md bg-status-ooo/10 px-4 py-3 text-sm text-status-ooo">
+      <div className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">
         {error.message}
       </div>
     );
@@ -139,61 +140,56 @@ export default function TapeChartPage() {
   const floors = [...new Set(chart.rooms.map((r) => r.floor ?? '—'))].sort();
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Tape chart</h1>
-          <p className="mt-1 text-sm opacity-60">
-            {chart.rooms.length} rooms · {chart.dates.length} nights
-          </p>
-        </div>
-
-        <div className="ml-auto flex items-end gap-2">
-          <label className="text-xs">
-            <span className="mb-1 block opacity-60">From</span>
+    <>
+      <PageHeader
+        title="Tape chart"
+        crumb="Operations"
+        action={
+          <div className="flex items-center gap-2">
             <input
               type="date"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="rounded-md border border-black/15 bg-transparent px-2 py-1 text-sm dark:border-white/20"
+              className="rounded-lg border border-line bg-card px-2.5 py-1.5 text-xs outline-none focus:border-brand"
             />
-          </label>
-          <label className="text-xs">
-            <span className="mb-1 block opacity-60">Nights</span>
             <select
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
-              className="rounded-md border border-black/15 bg-transparent px-2 py-1 text-sm dark:border-white/20"
+              className="rounded-lg border border-line bg-card px-2 py-1.5 text-xs outline-none focus:border-brand"
             >
               {[7, 14, 30, 60].map((d) => (
                 <option key={d} value={d}>
-                  {d}
+                  {d} nights
                 </option>
               ))}
             </select>
-          </label>
-          <button
-            onClick={() => setStart(addDays(start, -days))}
-            className="rounded-md border border-black/15 px-2 py-1 text-sm dark:border-white/20"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setStart(addDays(start, days))}
-            className="rounded-md border border-black/15 px-2 py-1 text-sm dark:border-white/20"
-          >
-            →
-          </button>
-        </div>
-      </div>
+            <div className="flex overflow-hidden rounded-lg border border-line">
+              <button
+                onClick={() => setStart(addDays(start, -days))}
+                className="bg-card px-2.5 py-1.5 text-xs text-muted hover:bg-canvas hover:text-ink"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => setStart(addDays(start, days))}
+                className="border-l border-line bg-card px-2.5 py-1.5 text-xs text-muted hover:bg-canvas hover:text-ink"
+              >
+                →
+              </button>
+            </div>
+          </div>
+        }
+      />
+
+      <div className="space-y-4">
 
       {/* Unassigned tray. These bookings hold inventory but have no room yet —
           they are invisible on the grid, so they need somewhere to live. */}
       {chart.unassigned.length > 0 && (
-        <div className="rounded-md border border-dashed border-black/20 p-3 dark:border-white/20">
-          <p className="mb-2 text-xs uppercase tracking-wide opacity-50">
+        <div className="rounded-lg border border-dashed border-line p-3">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
             Unassigned · {chart.unassigned.length}
-            {canAssign && <span className="ml-2 normal-case opacity-70">drag onto a room</span>}
+            {canAssign && <span className="ml-2 normal-case text-muted">drag onto a room</span>}
           </p>
           <div className="flex flex-wrap gap-2">
             {chart.unassigned.map((u) => (
@@ -218,10 +214,10 @@ export default function TapeChartPage() {
       {toast && (
         <div
           role="status"
-          className={`rounded-md px-3 py-2 text-sm ${
+          className={`rounded-lg px-3 py-2 text-sm ${
             toast.kind === 'ok'
-              ? 'bg-status-vacant-clean/15 text-status-vacant-clean'
-              : 'bg-status-ooo/15 text-status-ooo'
+              ? 'bg-success-soft text-success'
+              : 'bg-danger-soft text-danger'
           }`}
         >
           {toast.text}
@@ -231,23 +227,23 @@ export default function TapeChartPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-md border border-black/10 dark:border-white/10">
+      <div className="overflow-x-auto rounded-lg border border-line">
         <div style={{ minWidth: 120 + chart.dates.length * CELL_W }}>
           {/* Date header */}
-          <div className="flex border-b border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="w-[120px] shrink-0 px-2 py-1 text-[10px] uppercase tracking-wide opacity-50">
+          <div className="flex border-b border-line bg-canvas">
+            <div className="w-[120px] shrink-0 px-2 py-1 text-[10px] uppercase tracking-wide text-muted">
               Room
             </div>
             {chart.dates.map((d) => (
               <div
                 key={d}
                 style={{ width: CELL_W }}
-                className={`shrink-0 border-l border-black/5 py-1 text-center text-[10px] tabular-nums dark:border-white/5 ${
-                  isWeekend(d) ? 'bg-black/[0.03] dark:bg-white/[0.05]' : ''
+                className={`shrink-0 border-l border-line/60 py-1 text-center text-[10px] tabular-nums ${
+                  isWeekend(d) ? 'bg-canvas' : ''
                 }`}
               >
-                <div className="opacity-50">{d.slice(8)}</div>
-                <div className="opacity-30">
+                <div className="text-muted">{d.slice(8)}</div>
+                <div className="text-muted/60">
                   {new Date(`${d}T00:00:00Z`).toLocaleDateString('en', {
                     weekday: 'narrow',
                     timeZone: 'UTC',
@@ -259,7 +255,7 @@ export default function TapeChartPage() {
 
           {floors.map((floor) => (
             <div key={floor}>
-              <div className="border-b border-black/5 bg-black/[0.02] px-2 py-0.5 text-[10px] uppercase tracking-wide opacity-40 dark:border-white/5 dark:bg-white/[0.03]">
+              <div className="border-b border-line/60 bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide opacity-40 ">
                 Floor {floor}
               </div>
 
@@ -277,16 +273,16 @@ export default function TapeChartPage() {
                         if (isTarget) e.preventDefault(); // allow drop
                       }}
                       onDrop={() => void onDrop(room)}
-                      className={`flex border-b border-black/5 transition-colors dark:border-white/5 ${
-                        isTarget ? 'bg-status-vacant-clean/10' : ''
+                      className={`flex border-b border-line/60 transition-colors ${
+                        isTarget ? 'bg-success-soft' : ''
                       } ${isWrongType ? 'opacity-40' : ''}`}
                       style={{ height: ROW_H }}
                     >
                       <div className="flex w-[120px] shrink-0 items-center gap-1.5 px-2">
                         <span className="text-xs font-medium tabular-nums">{room.number}</span>
-                        <span className="text-[10px] opacity-40">{room.roomTypeCode}</span>
+                        <span className="text-[10px] text-muted">{room.roomTypeCode}</span>
                         {(room.status === 'OOO' || room.status === 'OOS') && (
-                          <span className="ml-auto rounded bg-status-ooo/20 px-1 text-[9px] text-status-ooo">
+                          <span className="ml-auto rounded bg-danger-soft px-1 text-[9px] text-danger">
                             {room.status}
                           </span>
                         )}
@@ -301,8 +297,8 @@ export default function TapeChartPage() {
                           <div
                             key={d}
                             style={{ left: i * CELL_W, width: CELL_W }}
-                            className={`absolute top-0 h-full border-l border-black/5 dark:border-white/5 ${
-                              isWeekend(d) ? 'bg-black/[0.02] dark:bg-white/[0.03]' : ''
+                            className={`absolute top-0 h-full border-l border-line/60 ${
+                              isWeekend(d) ? 'bg-canvas' : ''
                             }`}
                           />
                         ))}
@@ -344,13 +340,14 @@ export default function TapeChartPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 text-[10px]">
-        {Object.entries(RES_STATUS_STYLE).map(([status, cls]) => (
-          <span key={status} className={`rounded px-1.5 py-0.5 ${cls}`}>
-            {status.replace('_', ' ').toLowerCase()}
-          </span>
-        ))}
+        <div className="flex flex-wrap gap-2 text-[10px]">
+          {Object.entries(RES_STATUS_STYLE).map(([status, cls]) => (
+            <span key={status} className={`rounded px-1.5 py-0.5 ${cls}`}>
+              {status.replace('_', ' ').toLowerCase()}
+            </span>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

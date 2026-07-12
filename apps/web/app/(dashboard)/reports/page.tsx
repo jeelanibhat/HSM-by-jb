@@ -2,20 +2,34 @@
 
 import { useQuery } from '@apollo/client';
 import { useState } from 'react';
+import { Gauge } from '@/components/charts';
+import { Icon } from '@/components/icons';
+import {
+  Alert,
+  Badge,
+  Card,
+  CardHeader,
+  EmptyState,
+  Input,
+  PageHeader,
+  Spinner,
+  StatCard,
+} from '@/components/ui';
+import { cn } from '@/lib/cn';
 import { formatMinor, formatMinorPlain } from '@/lib/money';
 import { DAILY_REVENUE, type DailyRevenue } from '@/lib/graphql/back-office';
 import { CURRENT_PROPERTY, type Property } from '@/lib/graphql/operations';
 
 /**
- * The daily revenue report and trial balance.
+ * Daily revenue and trial balance.
  *
- * The trial balance is shown as an equation, not a number:
+ * The trial balance is shown as its WORKING, not as a number:
  *
  *   billed − collected = what guests still owe
  *
- * A single "outstanding" figure invites the reader to trust it. Showing the working
- * lets a manager see at a glance whether the books balance — and if they ever do
- * not, exactly which side is wrong.
+ * A lone "outstanding" figure invites the reader to trust it. Showing the arithmetic
+ * lets a manager see at a glance whether the books balance — and if they ever do not,
+ * exactly which side is wrong.
  */
 export default function ReportsPage() {
   const { data: prop } = useQuery<{ currentProperty: Property | null }>(CURRENT_PROPERTY);
@@ -24,166 +38,196 @@ export default function ReportsPage() {
   const [date, setDate] = useState<string | null>(null);
   const effective = date ?? businessDate;
 
-  const { data, loading, error } = useQuery<{ dailyRevenueReport: DailyRevenue }>(
-    DAILY_REVENUE,
-    { variables: { date: effective }, skip: !effective, fetchPolicy: 'cache-and-network' },
-  );
+  const { data, loading, error } = useQuery<{ dailyRevenueReport: DailyRevenue }>(DAILY_REVENUE, {
+    variables: { date: effective },
+    skip: !effective,
+    fetchPolicy: 'cache-and-network',
+  });
 
   const r = data?.dailyRevenueReport;
   const currency = r?.currency ?? 'INR';
+  const balances = r ? r.grossRevenueMinor - r.paymentsMinor === r.outstandingMinor : true;
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Daily revenue</h1>
-          <p className="mt-1 text-sm opacity-60">
-            Keyed on business date — a charge posted at 01:00 belongs to the trading day that
-            has not closed yet.
-          </p>
-        </div>
-
-        <label className="text-xs">
-          <span className="mb-1 block opacity-60">Business date</span>
-          <input
+    <>
+      <PageHeader
+        title="Daily revenue"
+        crumb="Back office"
+        action={
+          <Input
             type="date"
             value={effective ?? ''}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-md border border-black/15 bg-transparent px-2 py-1 text-sm dark:border-white/20"
+            className="w-auto py-1.5 text-xs"
           />
-        </label>
-      </div>
+        }
+      />
 
-      {error && (
-        <div className="rounded-md bg-status-ooo/10 px-4 py-3 text-sm text-status-ooo">
-          {error.message}
-        </div>
-      )}
-
-      {loading && !r && <p className="text-sm opacity-60">Loading…</p>}
+      {error && <Alert tone="danger">{error.message}</Alert>}
+      {loading && !r && <Spinner />}
 
       {r && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Section title="Revenue" hint="net of tax">
-              {r.revenue.length === 0 && <Empty>No revenue posted.</Empty>}
-              {r.revenue.map((l) => (
-                <Row key={l.code} label={l.code} count={l.count} amount={l.amountMinor} />
-              ))}
-              {r.taxMinor !== 0 && <Row label="Tax" amount={r.taxMinor} muted />}
-              {r.adjustmentsMinor !== 0 && (
-                <Row label="Adjustments" amount={r.adjustmentsMinor} muted />
-              )}
-              <Total label="Billed" amount={r.grossRevenueMinor} currency={currency} />
-            </Section>
-
-            <Section title="Payments taken">
-              {r.payments.length === 0 && <Empty>Nothing collected.</Empty>}
-              {r.payments.map((l) => (
-                <Row key={l.code} label={l.code.replace('_', ' ')} count={l.count} amount={l.amountMinor} />
-              ))}
-              <Total label="Collected" amount={r.paymentsMinor} currency={currency} />
-            </Section>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              tone="brand"
+              icon={<Icon.Money className="h-6 w-6" />}
+              label="Billed today"
+              value={formatMinor(r.grossRevenueMinor, currency)}
+              hint="charges + tax + adjustments"
+            />
+            <StatCard
+              tone="success"
+              icon={<Icon.Trend className="h-6 w-6" />}
+              label="Collected"
+              value={formatMinor(r.paymentsMinor, currency)}
+              hint="payments taken today"
+            />
+            <StatCard
+              tone="danger"
+              icon={<Icon.Users className="h-6 w-6" />}
+              label="Guests still owe"
+              value={formatMinor(r.outstandingMinor, currency)}
+              hint={`${r.openFolios} open folio${r.openFolios === 1 ? '' : 's'}`}
+            />
+            <StatCard
+              tone="warning"
+              icon={<Icon.Chart className="h-6 w-6" />}
+              label="Tax collected"
+              value={formatMinor(r.taxMinor, currency)}
+              hint="remitted, not revenue"
+            />
           </div>
 
-          {/* The trial balance, shown as its working. */}
-          <div className="rounded-md border border-black/10 p-5 dark:border-white/10">
-            <h2 className="text-xs uppercase tracking-wide opacity-50">Trial balance</h2>
+          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+            <Card>
+              <CardHeader title="Revenue" hint="net of tax" />
 
-            <div className="mt-3 space-y-1 text-sm">
-              <div className="flex justify-between tabular-nums">
-                <span className="opacity-70">Billed</span>
-                <span>{formatMinorPlain(r.grossRevenueMinor)}</span>
-              </div>
-              <div className="flex justify-between tabular-nums">
-                <span className="opacity-70">Collected</span>
-                <span>− {formatMinorPlain(r.paymentsMinor)}</span>
-              </div>
-              <div className="mt-1 flex justify-between border-t border-black/10 pt-1.5 text-base font-semibold tabular-nums dark:border-white/10">
-                <span>Guests still owe</span>
-                <span
-                  className={r.outstandingMinor > 0 ? 'text-status-ooo' : 'text-status-vacant-clean'}
-                >
-                  {formatMinor(r.outstandingMinor, currency)}
-                </span>
-              </div>
-            </div>
-
-            <p className="mt-2 text-xs opacity-60">
-              Across {r.openFolios} open folio{r.openFolios === 1 ? '' : 's'}.
-              {r.grossRevenueMinor - r.paymentsMinor === r.outstandingMinor ? (
-                <span className="ml-1 text-status-vacant-clean">The books balance.</span>
+              {r.revenue.length === 0 ? (
+                <EmptyState>No revenue posted.</EmptyState>
               ) : (
-                <span className="ml-1 font-medium text-status-ooo">
-                  These do not reconcile — something has been posted that this report cannot
-                  see.
-                </span>
+                <div className="space-y-1">
+                  {r.revenue.map((l) => (
+                    <Row key={l.code} label={l.code} count={l.count} amount={l.amountMinor} />
+                  ))}
+                  {r.taxMinor !== 0 && <Row label="Tax" amount={r.taxMinor} muted />}
+                  {r.adjustmentsMinor !== 0 && (
+                    <Row label="Adjustments" amount={r.adjustmentsMinor} muted />
+                  )}
+                  <Total label="Billed" amount={r.grossRevenueMinor} currency={currency} />
+                </div>
               )}
-            </p>
+            </Card>
+
+            <Card>
+              <CardHeader title="Payments taken" />
+
+              {r.payments.length === 0 ? (
+                <EmptyState>Nothing collected.</EmptyState>
+              ) : (
+                <div className="space-y-1">
+                  {r.payments.map((l) => (
+                    <Row
+                      key={l.code}
+                      label={l.code.replace('_', ' ')}
+                      count={l.count}
+                      amount={l.amountMinor}
+                    />
+                  ))}
+                  <Total label="Collected" amount={r.paymentsMinor} currency={currency} />
+                </div>
+              )}
+            </Card>
+
+            {/* The trial balance, shown as its working. */}
+            <Card>
+              <CardHeader
+                title="Trial balance"
+                action={
+                  <Badge tone={balances ? 'success' : 'danger'}>
+                    {balances ? 'balanced' : 'does not reconcile'}
+                  </Badge>
+                }
+              />
+
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between tabular-nums">
+                  <span className="text-muted">Billed</span>
+                  <span>{formatMinorPlain(r.grossRevenueMinor)}</span>
+                </div>
+                <div className="flex justify-between tabular-nums">
+                  <span className="text-muted">Collected</span>
+                  <span>− {formatMinorPlain(r.paymentsMinor)}</span>
+                </div>
+                <div className="mt-1 flex items-baseline justify-between border-t border-line pt-2">
+                  <span className="text-[13px] font-medium">Guests still owe</span>
+                  <span
+                    className={cn(
+                      'text-lg font-semibold tabular-nums',
+                      r.outstandingMinor > 0 ? 'text-danger' : 'text-success',
+                    )}
+                  >
+                    {formatMinor(r.outstandingMinor, currency)}
+                  </span>
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs text-muted">
+                {balances ? (
+                  <>The books balance across {r.openFolios} open folios.</>
+                ) : (
+                  <span className="font-medium text-danger">
+                    These do not reconcile — something has been posted that this report cannot
+                    see.
+                  </span>
+                )}
+              </p>
+            </Card>
           </div>
 
-          <div className="rounded-md border border-black/10 p-5 dark:border-white/10">
-            <h2 className="text-xs uppercase tracking-wide opacity-50">Occupancy</h2>
+          <Card className="mt-5">
+            <CardHeader
+              title="Occupancy"
+              hint="frozen by the night audit — these numbers do not move"
+            />
 
             {r.snapshot ? (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Stat
-                    label="Occupancy"
-                    value={`${(r.snapshot.occupancyBps / 100).toFixed(1)}%`}
-                    hint={`${r.snapshot.roomsSold} of ${r.snapshot.roomsAvailable} sold`}
+              <div className="grid items-center gap-6 sm:grid-cols-[220px_1fr]">
+                <Gauge bps={r.snapshot.occupancyBps} label="Rooms sold" />
+
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Metric
+                    label="Sold"
+                    value={`${r.snapshot.roomsSold} / ${r.snapshot.roomsAvailable}`}
+                    hint="of sellable rooms"
                   />
-                  <Stat
+                  <Metric
                     label="ADR"
                     value={formatMinor(r.snapshot.adrMinor, currency)}
-                    hint="room revenue ÷ rooms SOLD"
+                    hint="revenue ÷ rooms SOLD"
                   />
-                  <Stat
+                  <Metric
                     label="RevPAR"
                     value={formatMinor(r.snapshot.revparMinor, currency)}
-                    hint="room revenue ÷ rooms AVAILABLE"
+                    hint="revenue ÷ rooms AVAILABLE"
                   />
-                  <Stat
+                  <Metric
                     label="Out of order"
                     value={String(r.snapshot.roomsOutOfOrder)}
                     hint="excluded from availability"
                   />
                 </div>
-                <p className="mt-3 text-xs opacity-50">
-                  Frozen by the night audit. These numbers do not move if a booking is
-                  cancelled later — the trading day is closed.
-                </p>
-              </>
+              </div>
             ) : (
-              <p className="mt-2 text-sm opacity-60">
+              <EmptyState>
                 The night audit has not run for {r.businessDate} yet, so occupancy has not been
                 frozen.
-              </p>
+              </EmptyState>
             )}
-          </div>
+          </Card>
         </>
       )}
-    </div>
-  );
-}
-
-function Section({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
-      <h2 className="text-xs uppercase tracking-wide opacity-50">
-        {title}
-        {hint && <span className="ml-1.5 normal-case opacity-70">({hint})</span>}
-      </h2>
-      <div className="mt-2 space-y-0.5">{children}</div>
-    </div>
+    </>
   );
 }
 
@@ -199,10 +243,10 @@ function Row({
   muted?: boolean;
 }) {
   return (
-    <div className={`flex justify-between text-sm tabular-nums ${muted ? 'opacity-60' : ''}`}>
+    <div className={cn('flex justify-between text-[13px] tabular-nums', muted && 'text-muted')}>
       <span>
         {label}
-        {count !== undefined && <span className="ml-1 text-xs opacity-50">×{count}</span>}
+        {count !== undefined && <span className="ml-1 text-[11px] text-muted">×{count}</span>}
       </span>
       <span>{formatMinorPlain(amount)}</span>
     </div>
@@ -211,23 +255,19 @@ function Row({
 
 function Total({ label, amount, currency }: { label: string; amount: number; currency: string }) {
   return (
-    <div className="mt-1.5 flex justify-between border-t border-black/10 pt-1.5 text-sm font-semibold tabular-nums dark:border-white/10">
+    <div className="mt-1.5 flex justify-between border-t border-line pt-2 text-sm font-semibold tabular-nums">
       <span>{label}</span>
       <span>{formatMinor(amount, currency)}</span>
     </div>
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Metric({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wide opacity-50">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums">{value}</p>
-      <p className="text-[10px] opacity-45">{hint}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-0.5 text-[15px] font-semibold tabular-nums">{value}</p>
+      <p className="text-[10px] text-muted/70">{hint}</p>
     </div>
   );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-1 text-xs opacity-50">{children}</p>;
 }

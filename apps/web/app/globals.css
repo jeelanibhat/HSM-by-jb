@@ -1,42 +1,130 @@
 @import 'tailwindcss';
 
 /**
- * Room/reservation status tokens (TDD §7.2).
+ * HotelOS design system.
  *
- * The tape chart and the room-status board MUST agree on colour — a room that
- * reads "dirty" on one screen and "clean" on another is how rooms get
- * double-sold. Defined once here; both surfaces consume the token, never a
- * literal hex. Moves to packages/ui when the design system lands.
+ * Built from scratch in Tailwind — no third-party admin stylesheet is vendored in.
+ * Everything below is a token; components consume the token, never a literal hex.
+ * That is what lets the room-status colours on the tape chart, the status board and
+ * the front desk agree, which is not cosmetic: a room that reads "dirty" on one
+ * screen and "clean" on another is how rooms get double-sold (TDD §7.2).
  */
 @theme {
-  --color-status-vacant-clean: oklch(0.72 0.15 155); /* green  — sellable now */
-  --color-status-vacant-dirty: oklch(0.78 0.16 75); /* amber  — needs housekeeping */
-  --color-status-occupied: oklch(0.62 0.17 255); /* blue   — in-house */
-  --color-status-ooo: oklch(0.58 0.19 25); /* red    — out of order */
-  --color-status-oos: oklch(0.55 0.03 260); /* slate  — out of service */
+  /* ── Brand ─────────────────────────────────────────────────────────────── */
+  --color-brand-50: #f1efff;
+  --color-brand-100: #e4e0ff;
+  --color-brand-200: #cbc4ff;
+  --color-brand-300: #a99dff;
+  --color-brand-400: #8b7cff;
+  --color-brand: #7366ff;
+  --color-brand-600: #5f4fe8;
+  --color-brand-700: #4b3cc4;
 
-  --color-res-enquiry: oklch(0.72 0.04 260);
-  --color-res-confirmed: oklch(0.62 0.17 255);
-  --color-res-checked-in: oklch(0.72 0.15 155);
-  --color-res-checked-out: oklch(0.65 0.02 260);
-  --color-res-cancelled: oklch(0.62 0.12 25);
-  --color-res-no-show: oklch(0.55 0.16 15);
+  /* ── Semantic ──────────────────────────────────────────────────────────── */
+  --color-success: #54ba4a;
+  --color-success-soft: #eaf7e9;
+  --color-warning: #ffa941;
+  --color-warning-soft: #fff3e5;
+  --color-danger: #fc4438;
+  --color-danger-soft: #ffe9e8;
+  --color-info: #16c7f9;
+  --color-info-soft: #e5f8fe;
+
+  /* ── Surfaces (light) ──────────────────────────────────────────────────── */
+  --color-canvas: #f5f6f9;
+  --color-card: #ffffff;
+  --color-line: #eef0f4;
+  --color-ink: #2f2f3b;
+  --color-muted: #7c8091;
+
+  /* ── Sidebar (always dark, in both themes — like the reference) ─────────── */
+  --color-rail: #262932;
+  --color-rail-hover: #31353f;
+  --color-rail-text: #a8aebb;
+
+  /* ── Room status (TDD §7.2) — one definition, every surface ─────────────── */
+  --color-status-vacant-clean: #54ba4a;
+  --color-status-vacant-dirty: #ffa941;
+  --color-status-occupied: #7366ff;
+  --color-status-ooo: #fc4438;
+  --color-status-oos: #8b90a0;
+
+  /* ── Reservation status ────────────────────────────────────────────────── */
+  --color-res-enquiry: #8b90a0;
+  --color-res-confirmed: #7366ff;
+  --color-res-checked-in: #54ba4a;
+  --color-res-checked-out: #a8aebb;
+  --color-res-cancelled: #fc4438;
+  --color-res-no-show: #c62828;
+
+  /* ── Elevation. Soft and wide, never a hard drop shadow. ────────────────── */
+  --shadow-card: 0 1px 2px rgba(46, 45, 116, 0.04), 0 8px 24px rgba(46, 45, 116, 0.06);
+  --shadow-pop: 0 4px 12px rgba(46, 45, 116, 0.08), 0 24px 48px rgba(46, 45, 116, 0.12);
+
+  --radius-card: 12px;
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.15 0.01 260);
-}
-
+/* ── Dark theme ───────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.16 0.01 260);
-    --foreground: oklch(0.95 0.005 260);
+  @theme {
+    --color-canvas: #1b1d24;
+    --color-card: #23262f;
+    --color-line: #2f333e;
+    --color-ink: #e6e8ee;
+    --color-muted: #8a90a0;
+    --color-rail: #1a1c22;
+    --color-rail-hover: #262932;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.24);
+    --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.3), 0 24px 48px rgba(0, 0, 0, 0.4);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Numbers in a table must line up. Money that jitters is money you misread. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /**
+   * Sidebar scrollbar. Thin, and only visible on hover — a permanent scrollbar in a
+   * dark rail is the first thing that makes an admin panel look cheap.
+   */
+  .rail-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .rail-scroll:hover {
+    scrollbar-color: #454a58 transparent;
+  }
+  .rail-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .rail-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .rail-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+  .rail-scroll:hover::-webkit-scrollbar-thumb {
+    background: #454a58;
+  }
 }

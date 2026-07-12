@@ -2,7 +2,10 @@
 
 import { useMutation, useQuery } from '@apollo/client';
 import { useState } from 'react';
+import { Icon } from '@/components/icons';
+import { Alert, Badge, Button, Field, Input, Select, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { cn } from '@/lib/cn';
 import { formatMinor, formatMinorPlain, parseMajorToMinor } from '@/lib/money';
 import {
   CHARGE_CODES,
@@ -21,12 +24,12 @@ import {
  * Two rules the screen has to make visible, because they are the two the ledger is
  * built around:
  *
- *   1. A voided line is STRUCK THROUGH, not hidden. It happened. The reversing
- *      entry sits below it. Hiding it would make the screen disagree with the
- *      append-only ledger underneath, and an auditor would trust neither.
+ *   1. A voided line is STRUCK THROUGH, not hidden. It happened. The reversing entry
+ *      sits below it. Hiding it would make the screen disagree with the append-only
+ *      ledger underneath, and an auditor would trust neither.
  *
- *   2. The balance is what check-out gates on. It is the biggest number on the
- *      screen, and it says plainly whether the guest can leave.
+ *   2. The balance is what check-out gates on. It is the biggest thing on the panel
+ *      and it says plainly whether the guest can leave.
  */
 export function FolioPanel({
   folioId,
@@ -54,42 +57,62 @@ export function FolioPanel({
   const folio = data?.folio;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-2xl flex-col border-l border-black/10 bg-[var(--background)] shadow-2xl dark:border-white/15"
+        className="flex h-full w-full max-w-2xl flex-col bg-card shadow-pop"
       >
-        <header className="flex items-start justify-between border-b border-black/10 px-5 py-4 dark:border-white/10">
+        <header className="flex shrink-0 items-start justify-between border-b border-line px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">{guestName}</h2>
-            <p className="mt-0.5 text-xs opacity-60">
-              {folio ? `Folio ${folio.folioNo} · ${folio.status.toLowerCase()}` : 'Loading…'}
-            </p>
+            <h2 className="text-[15px] font-semibold">{guestName}</h2>
+            {folio && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                Folio {folio.folioNo}
+                <Badge tone={folio.status === 'OPEN' ? 'brand' : 'neutral'}>
+                  {folio.status.toLowerCase()}
+                </Badge>
+              </p>
+            )}
           </div>
-          <button onClick={onClose} className="text-sm opacity-60 hover:opacity-100">
-            Close
+
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+            <Icon.Close />
           </button>
         </header>
 
-        {loading && !folio && <p className="p-5 text-sm opacity-60">Loading folio…</p>}
+        {loading && !folio && (
+          <div className="px-5">
+            <Spinner label="Loading folio…" />
+          </div>
+        )}
 
         {folio && (
           <>
             {/* The number check-out gates on. */}
-            <div className="border-b border-black/10 px-5 py-4 dark:border-white/10">
-              <p className="text-xs uppercase tracking-wide opacity-50">Balance</p>
+            <div
+              className={cn(
+                'shrink-0 border-b border-line px-5 py-4',
+                folio.balanceMinor > 0
+                  ? 'bg-danger-soft'
+                  : folio.balanceMinor < 0
+                    ? 'bg-warning-soft'
+                    : 'bg-success-soft',
+              )}
+            >
+              <p className="text-[11px] font-medium uppercase tracking-wide opacity-70">Balance</p>
               <p
-                className={`mt-1 text-3xl font-semibold tabular-nums ${
+                className={cn(
+                  'mt-0.5 text-3xl font-semibold tabular-nums',
                   folio.balanceMinor > 0
-                    ? 'text-status-ooo'
+                    ? 'text-danger'
                     : folio.balanceMinor < 0
-                      ? 'text-status-vacant-dirty'
-                      : 'text-status-vacant-clean'
-                }`}
+                      ? 'text-warning'
+                      : 'text-success',
+                )}
               >
                 {formatMinor(folio.balanceMinor, folio.currency)}
               </p>
-              <p className="mt-1 text-xs opacity-60">
+              <p className="mt-1 text-xs opacity-80">
                 {folio.balanceMinor > 0
                   ? 'Outstanding — the guest cannot check out until this is settled.'
                   : folio.balanceMinor < 0
@@ -101,17 +124,17 @@ export function FolioPanel({
             <div className="flex-1 overflow-y-auto px-5 py-3">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-black/10 text-left text-[10px] uppercase tracking-wide opacity-50 dark:border-white/10">
-                    <th className="pb-1.5 font-medium">Date</th>
-                    <th className="pb-1.5 font-medium">Description</th>
-                    <th className="pb-1.5 text-right font-medium">Amount</th>
-                    <th className="pb-1.5" />
+                  <tr className="border-b border-line text-left text-[11px] font-medium uppercase tracking-wide text-muted">
+                    <th className="pb-2">Date</th>
+                    <th className="pb-2">Description</th>
+                    <th className="pb-2 text-right">Amount</th>
+                    <th className="pb-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {folio.lines.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-xs opacity-50">
+                      <td colSpan={4} className="py-8 text-center text-xs text-muted">
                         Nothing posted yet.
                       </td>
                     </tr>
@@ -131,33 +154,28 @@ export function FolioPanel({
             </div>
 
             {error && (
-              <div
-                role="alert"
-                className="mx-5 mb-2 rounded bg-status-ooo/10 px-3 py-2 text-xs text-status-ooo"
-              >
-                {error}
-                <button onClick={() => setError(null)} className="ml-2 underline">
-                  dismiss
-                </button>
+              <div className="shrink-0 px-5 pb-2">
+                <Alert tone="danger" onDismiss={() => setError(null)}>
+                  {error}
+                </Alert>
               </div>
             )}
 
             {folio.status !== 'OPEN' ? (
-              <div className="border-t border-black/10 px-5 py-4 text-xs opacity-60 dark:border-white/10">
+              <div className="shrink-0 border-t border-line px-5 py-4 text-xs text-muted">
                 This folio is {folio.status.toLowerCase()}. Nothing more can be posted to it.
               </div>
             ) : canPost ? (
-              <div className="border-t border-black/10 dark:border-white/10">
+              <div className="shrink-0 border-t border-line">
                 <div className="flex gap-1 px-5 pt-3">
                   {(['charge', 'payment'] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setTab(t)}
-                      className={`rounded px-3 py-1.5 text-xs font-medium capitalize ${
-                        tab === t
-                          ? 'bg-status-occupied/15 text-status-occupied'
-                          : 'opacity-60 hover:opacity-100'
-                      }`}
+                      className={cn(
+                        'rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors',
+                        tab === t ? 'bg-brand-50 text-brand' : 'text-muted hover:text-ink',
+                      )}
                     >
                       Post {t}
                     </button>
@@ -185,7 +203,7 @@ export function FolioPanel({
                 )}
               </div>
             ) : (
-              <div className="border-t border-black/10 px-5 py-4 text-xs opacity-60 dark:border-white/10">
+              <div className="shrink-0 border-t border-line px-5 py-4 text-xs text-muted">
                 Your role cannot post to a folio.
               </div>
             )}
@@ -196,7 +214,7 @@ export function FolioPanel({
   );
 }
 
-/** Amounts render without a currency symbol — it is stated once, on the balance. */
+/** Amounts render bare — the currency is stated once, on the balance. */
 function LineRow({
   line,
   canVoid,
@@ -212,9 +230,9 @@ function LineRow({
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
 
-  // Only a CHARGE can be voided. Voiding tax alone is refused by the server —
-  // "the charge stands but the tax on it does not" is either fraud or a bug — so
-  // we do not offer a button that only exists to fail.
+  // Only a CHARGE can be voided. Voiding tax alone is refused by the server — "the
+  // charge stands but the tax on it does not" is either fraud or a bug — so we do
+  // not offer a button that only exists to fail.
   const voidable = canVoid && !line.voided && line.type === 'CHARGE' && !line.reversesLineId;
 
   const submit = async () => {
@@ -230,27 +248,32 @@ function LineRow({
 
   return (
     <>
-      <tr className="border-b border-black/5 dark:border-white/5">
-        <td className="py-2 text-xs tabular-nums opacity-50">{line.businessDate.slice(5)}</td>
-        <td className={`py-2 ${line.voided ? 'line-through opacity-40' : ''}`}>
-          <span className="text-xs">{line.description}</span>
-          {line.type === 'TAX' && <span className="ml-1.5 text-[10px] opacity-50">tax</span>}
-          {line.reason && (
-            <span className="ml-1.5 text-[10px] opacity-60">— {line.reason}</span>
+      <tr className="border-b border-line/60">
+        <td className="py-2.5 text-[11px] tabular-nums text-muted">{line.businessDate.slice(5)}</td>
+
+        <td className={cn('py-2.5', line.voided && 'line-through opacity-45')}>
+          <span className="text-[13px]">{line.description}</span>
+          {line.type === 'TAX' && (
+            <span className="ml-1.5 rounded bg-line px-1 text-[9px] uppercase text-muted">tax</span>
           )}
+          {line.reason && <p className="text-[10px] text-muted">— {line.reason}</p>}
         </td>
+
         <td
-          className={`py-2 text-right text-xs tabular-nums ${
-            line.voided ? 'line-through opacity-40' : ''
-          } ${line.amountMinor < 0 ? 'text-status-vacant-clean' : ''}`}
+          className={cn(
+            'py-2.5 text-right text-[13px] tabular-nums',
+            line.voided && 'line-through opacity-45',
+            line.amountMinor < 0 && 'text-success',
+          )}
         >
           {formatMinorPlain(line.amountMinor)}
         </td>
-        <td className="py-2 pl-2 text-right">
+
+        <td className="py-2.5 pl-2 text-right">
           {voidable && (
             <button
               onClick={() => setConfirming(true)}
-              className="text-[10px] opacity-50 underline hover:opacity-100"
+              className="text-[10px] font-medium text-muted underline-offset-2 hover:text-danger hover:underline"
             >
               void
             </button>
@@ -260,33 +283,31 @@ function LineRow({
 
       {confirming && (
         <tr>
-          <td colSpan={4} className="pb-2">
-            <div className="rounded bg-status-ooo/5 p-2.5">
-              <p className="mb-1.5 text-[11px] opacity-70">
+          <td colSpan={4} className="pb-2.5">
+            <div className="rounded-lg bg-danger-soft p-3">
+              <p className="mb-2 text-[11px] text-danger/90">
                 Voiding posts a reversing entry. The original line stays on the bill, struck
                 through. Its tax is reversed with it.
               </p>
               <div className="flex gap-2">
-                <input
+                <Input
                   autoFocus
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Reason (required — goes to the audit log)"
-                  className="flex-1 rounded border border-black/15 bg-transparent px-2 py-1 text-xs dark:border-white/20"
+                  className="bg-card"
                 />
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => void submit()}
                   disabled={reason.trim().length < 3 || loading}
-                  className="rounded bg-status-ooo px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
                 >
                   {loading ? '…' : 'Void'}
-                </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="px-2 text-xs opacity-60 hover:opacity-100"
-                >
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </td>
@@ -315,7 +336,8 @@ function ChargeForm({
 
   const minor = parseMajorToMinor(amount);
   const qty = Number(quantity);
-  const valid = minor !== null && minor > 0 && Number.isInteger(qty) && qty >= 1 && description.trim();
+  const valid =
+    minor !== null && minor > 0 && Number.isInteger(qty) && qty >= 1 && description.trim() !== '';
 
   const submit = async () => {
     if (!valid || minor === null) return;
@@ -328,7 +350,7 @@ function ChargeForm({
             code,
             description: description.trim(),
             // Minor units on the wire. The client never computes a total or a tax —
-            // the server splits GST out and the two can never disagree.
+            // the server splits GST out, so the two can never disagree.
             amountMinor: minor,
             quantity: qty,
             currency,
@@ -345,60 +367,54 @@ function ChargeForm({
   };
 
   return (
-    <div className="grid grid-cols-[110px_1fr_90px_60px_auto] items-end gap-2 px-5 py-3">
-      <Field label="Code">
-        <select
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="w-full rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-        >
-          {CHARGE_CODES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </Field>
+    <div className="px-5 py-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[110px_1fr_100px_64px_auto]">
+        <Field label="Code">
+          <Select value={code} onChange={(e) => setCode(e.target.value)}>
+            {CHARGE_CODES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
-      <Field label="Description">
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g. Dinner, table 4"
-          className="w-full rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-        />
-      </Field>
+        <Field label="Description">
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Dinner, table 4"
+          />
+        </Field>
 
-      <Field label={`Amount`}>
-        <input
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          className={`w-full rounded border bg-transparent px-2 py-1.5 text-right text-sm tabular-nums dark:border-white/20 ${
-            amount && minor === null ? 'border-status-ooo' : 'border-black/15'
-          }`}
-        />
-      </Field>
+        <Field label="Amount">
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            invalid={Boolean(amount) && minor === null}
+            className="text-right tabular-nums"
+          />
+        </Field>
 
-      <Field label="Qty">
-        <input
-          inputMode="numeric"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          className="w-full rounded border border-black/15 bg-transparent px-2 py-1.5 text-right text-sm tabular-nums dark:border-white/20"
-        />
-      </Field>
+        <Field label="Qty">
+          <Input
+            inputMode="numeric"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="text-right tabular-nums"
+          />
+        </Field>
 
-      <button
-        onClick={() => void submit()}
-        disabled={!valid || loading}
-        className="rounded bg-status-occupied px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-      >
-        {loading ? '…' : 'Post'}
-      </button>
+        <div className="flex items-end">
+          <Button onClick={() => void submit()} disabled={!valid || loading} className="w-full">
+            {loading ? '…' : 'Post'}
+          </Button>
+        </div>
+      </div>
 
-      <p className="col-span-5 -mt-1 text-[10px] opacity-50">
+      <p className="mt-2 text-[10px] text-muted">
         Tax is added by the server from the property&apos;s configuration — do not include it.
       </p>
     </div>
@@ -432,7 +448,13 @@ function PaymentForm({
     try {
       await postPayment({
         variables: {
-          input: { folioId, code, amountMinor: minor, currency, reference: reference.trim() || undefined },
+          input: {
+            folioId,
+            code,
+            amountMinor: minor,
+            currency,
+            reference: reference.trim() || undefined,
+          },
         },
       });
       setAmount('');
@@ -444,67 +466,57 @@ function PaymentForm({
   };
 
   return (
-    <div className="grid grid-cols-[120px_1fr_110px_auto] items-end gap-2 px-5 py-3">
-      <Field label="Method">
-        <select
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="w-full rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-        >
-          {PAYMENT_CODES.map((c) => (
-            <option key={c} value={c}>
-              {c.replace('_', ' ')}
-            </option>
-          ))}
-        </select>
-      </Field>
+    <div className="px-5 py-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[130px_1fr_120px_auto]">
+        <Field label="Method">
+          <Select value={code} onChange={(e) => setCode(e.target.value)}>
+            {PAYMENT_CODES.map((c) => (
+              <option key={c} value={c}>
+                {c.replace('_', ' ')}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
-      <Field label="Reference">
-        <input
-          value={reference}
-          onChange={(e) => setReference(e.target.value)}
-          placeholder="optional — card last 4, UPI ref"
-          className="w-full rounded border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
-        />
-      </Field>
+        <Field label="Reference">
+          <Input
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="card last 4, UPI ref…"
+          />
+        </Field>
 
-      <Field label="Amount">
-        <input
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          className={`w-full rounded border bg-transparent px-2 py-1.5 text-right text-sm tabular-nums dark:border-white/20 ${
-            amount && minor === null ? 'border-status-ooo' : 'border-black/15'
-          }`}
-        />
-      </Field>
+        <Field label="Amount">
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            invalid={Boolean(amount) && minor === null}
+            className="text-right tabular-nums"
+          />
+        </Field>
 
-      <button
-        onClick={() => void submit()}
-        disabled={!valid || loading}
-        className="rounded bg-status-vacant-clean px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-      >
-        {loading ? '…' : 'Take'}
-      </button>
+        <div className="flex items-end">
+          <Button
+            variant="success"
+            onClick={() => void submit()}
+            disabled={!valid || loading}
+            className="w-full"
+          >
+            {loading ? '…' : 'Take'}
+          </Button>
+        </div>
+      </div>
 
       {balanceMinor > 0 && (
         <button
           onClick={() => setAmount((balanceMinor / 100).toFixed(2))}
-          className="col-span-4 -mt-1 text-left text-[10px] underline opacity-60 hover:opacity-100"
+          className="mt-2 text-[11px] font-medium text-brand hover:underline"
         >
           Settle in full — {formatMinor(balanceMinor, currency)}
         </button>
       )}
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10px] uppercase tracking-wide opacity-50">{label}</span>
-      {children}
-    </label>
   );
 }

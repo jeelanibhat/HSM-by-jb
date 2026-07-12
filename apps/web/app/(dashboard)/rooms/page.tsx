@@ -2,7 +2,9 @@
 
 import { useMutation, useQuery } from '@apollo/client';
 import { useState } from 'react';
+import { Alert, Button, Card, CardHeader, EmptyState, Input, PageHeader, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { cn } from '@/lib/cn';
 import {
   ROOMS,
   STATUS_STYLE,
@@ -17,36 +19,31 @@ import {
  *
  * The status options offered for a room come from `allowedTransitions`, computed
  * SERVER-side by the domain machine. The UI never derives them: an occupied room
- * simply has no "out of order" button to press, rather than showing one and
- * failing on submit. Same rule, one definition, and the screen cannot drift from it.
+ * simply has no "out of order" button to press, rather than showing one and failing
+ * on submit. Same rule, one definition, and the screen cannot drift from it.
  */
 export default function RoomsPage() {
   const { role } = useAuth();
   const { data, loading, error } = useQuery<{ rooms: Room[]; roomTypes: RoomType[] }>(ROOMS);
   const [selected, setSelected] = useState<Room | null>(null);
+  const [filter, setFilter] = useState<RoomStatus | 'ALL'>('ALL');
 
   const canEdit = role !== 'AUDITOR';
 
-  if (loading) return <p className="text-sm opacity-60">Loading rooms…</p>;
-  if (error) {
-    return (
-      <div className="rounded-md bg-status-ooo/10 px-4 py-3 text-sm text-status-ooo">
-        {error.message}
-      </div>
-    );
-  }
+  if (loading && !data) return <Spinner label="Loading rooms…" />;
+  if (error) return <Alert tone="danger">{error.message}</Alert>;
 
   const rooms = data?.rooms ?? [];
   const typeById = new Map((data?.roomTypes ?? []).map((t) => [t.id, t]));
 
   if (rooms.length === 0) {
     return (
-      <div className="space-y-2">
-        <h1 className="text-xl font-semibold tracking-tight">Rooms</h1>
-        <p className="text-sm opacity-60">
+      <>
+        <PageHeader title="Rooms" crumb="Operations" />
+        <EmptyState>
           This property has no rooms yet. A manager can add room types and rooms in settings.
-        </p>
-      </div>
+        </EmptyState>
+      </>
     );
   }
 
@@ -55,61 +52,92 @@ export default function RoomsPage() {
     return acc;
   }, {});
 
-  const floors = [...new Set(rooms.map((r) => r.floor ?? '—'))].sort();
+  const shown = filter === 'ALL' ? rooms : rooms.filter((r) => r.status === filter);
+  const floors = [...new Set(shown.map((r) => r.floor ?? '—'))].sort();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Rooms</h1>
-        <p className="mt-1 text-sm opacity-60">{rooms.length} rooms</p>
-      </div>
+    <>
+      <PageHeader title="Rooms" crumb="Operations" />
 
-      <div className="flex flex-wrap gap-2">
+      {/* Status filter doubles as the legend. Clicking a count filters to it. */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <button
+          onClick={() => setFilter('ALL')}
+          className={cn(
+            'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+            filter === 'ALL'
+              ? 'border-brand bg-brand text-white'
+              : 'border-line bg-card text-muted hover:text-ink',
+          )}
+        >
+          All <span className="ml-1 tabular-nums opacity-80">{rooms.length}</span>
+        </button>
+
         {(Object.keys(STATUS_STYLE) as RoomStatus[]).map((s) => (
-          <span
+          <button
             key={s}
-            className={`rounded border px-2 py-1 text-xs ${STATUS_STYLE[s].className}`}
+            onClick={() => setFilter(s)}
+            className={cn(
+              'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+              filter === s ? STATUS_STYLE[s].className : 'border-line bg-card text-muted hover:text-ink',
+            )}
           >
-            {STATUS_STYLE[s].label} · <strong>{counts[s] ?? 0}</strong>
-          </span>
+            {STATUS_STYLE[s].label}
+            <span className="ml-1 tabular-nums opacity-80">{counts[s] ?? 0}</span>
+          </button>
         ))}
       </div>
 
-      {floors.map((floor) => (
-        <section key={floor}>
-          <h2 className="mb-2 text-xs uppercase tracking-wide opacity-50">Floor {floor}</h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-2">
-            {rooms
-              .filter((r) => (r.floor ?? '—') === floor)
-              .map((room) => (
-                <button
-                  key={room.id}
-                  onClick={() => canEdit && setSelected(room)}
-                  disabled={!canEdit || room.allowedTransitions.length === 0}
-                  title={
-                    room.allowedTransitions.length === 0
-                      ? 'Occupied — check the guest out to change this room'
-                      : undefined
-                  }
-                  className={`rounded-md border px-2 py-3 text-left transition-opacity enabled:hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60 ${
-                    STATUS_STYLE[room.status].className
-                  }`}
-                >
-                  <div className="text-sm font-semibold tabular-nums">{room.number}</div>
-                  <div className="mt-0.5 text-[10px] opacity-80">
-                    {typeById.get(room.roomTypeId)?.code ?? ''}
-                  </div>
-                  <div className="mt-1 text-[10px] leading-tight opacity-90">
-                    {STATUS_STYLE[room.status].label}
-                  </div>
-                </button>
-              ))}
-          </div>
-        </section>
-      ))}
+      <div className="space-y-5">
+        {floors.map((floor) => (
+          <Card key={floor}>
+            <CardHeader title={`Floor ${floor}`} />
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2.5">
+              {shown
+                .filter((r) => (r.floor ?? '—') === floor)
+                .map((room) => {
+                  const locked = !canEdit || room.allowedTransitions.length === 0;
+
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => !locked && setSelected(room)}
+                      disabled={locked}
+                      title={
+                        room.allowedTransitions.length === 0
+                          ? 'Occupied — check the guest out to change this room'
+                          : undefined
+                      }
+                      className={cn(
+                        'rounded-lg border px-2.5 py-3 text-left transition-all',
+                        STATUS_STYLE[room.status].className,
+                        locked
+                          ? 'cursor-not-allowed opacity-70'
+                          : 'hover:-translate-y-0.5 hover:shadow-card',
+                      )}
+                    >
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[15px] font-semibold tabular-nums">
+                          {room.number}
+                        </span>
+                        <span className="text-[10px] opacity-70">
+                          {typeById.get(room.roomTypeId)?.code ?? ''}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] font-medium leading-tight opacity-90">
+                        {STATUS_STYLE[room.status].short}
+                      </p>
+                    </button>
+                  );
+                })}
+            </div>
+          </Card>
+        ))}
+      </div>
 
       {selected && <StatusDialog room={selected} onClose={() => setSelected(null)} />}
-    </div>
+    </>
   );
 }
 
@@ -119,14 +147,14 @@ function StatusDialog({ room, onClose }: { room: Room; onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
 
   const [update, { loading }] = useMutation(UPDATE_ROOM_STATUS, {
-    // The room-status board, the tape chart and availability all read this room.
-    // Refetching is cheap and correct; hand-patching the cache is where staleness
-    // and cross-screen disagreement creep in.
+    // The room board, the tape chart and availability all read this room. Refetching
+    // is cheap and correct; hand-patching the cache is where cross-screen staleness
+    // creeps in.
     refetchQueries: ['Rooms'],
   });
 
-  // Taking a room out of order strands a guest if it is a mistake — make the
-  // person say why. It lands in the audit log (TDD §7.4).
+  // Taking a room out of order strands a guest if it is a mistake — make the person
+  // say why. It lands in the audit log (TDD §7.4).
   const needsReason = status === 'OOO' || status === 'OOS';
 
   const submit = async () => {
@@ -135,9 +163,7 @@ function StatusDialog({ room, onClose }: { room: Room; onClose: () => void }) {
 
     try {
       await update({
-        variables: {
-          input: { roomId: room.id, status, reason: reason.trim() || undefined },
-        },
+        variables: { input: { roomId: room.id, status, reason: reason.trim() || undefined } },
       });
       onClose();
     } catch (e) {
@@ -147,29 +173,30 @@ function StatusDialog({ room, onClose }: { room: Room; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-label={`Change status of room ${room.number}`}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-lg border border-black/10 bg-[var(--background)] p-5 shadow-xl dark:border-white/15"
+        className="w-full max-w-sm rounded-card border border-line bg-card p-5 shadow-pop"
       >
         <h2 className="text-base font-semibold">Room {room.number}</h2>
-        <p className="mt-1 text-xs opacity-60">
+        <p className="mt-0.5 text-xs text-muted">
           Currently {STATUS_STYLE[room.status].label.toLowerCase()}
         </p>
 
         <div className="mt-4 space-y-2">
           {/* Only the transitions the server says are legal. An occupied room has
-              none, so this list is empty and the button was never clickable. */}
+              none, so this list is empty and the tile was never clickable. */}
           {room.allowedTransitions.map((s) => (
             <label
               key={s}
-              className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${
-                status === s ? STATUS_STYLE[s].className : 'border-black/10 dark:border-white/15'
-              }`}
+              className={cn(
+                'flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors',
+                status === s ? STATUS_STYLE[s].className : 'border-line hover:bg-canvas',
+              )}
             >
               <input
                 type="radio"
@@ -186,36 +213,31 @@ function StatusDialog({ room, onClose }: { room: Room; onClose: () => void }) {
 
         {needsReason && (
           <div className="mt-3">
-            <label htmlFor="reason" className="mb-1 block text-xs font-medium">
-              Reason <span className="opacity-60">(recorded in the audit log)</span>
-            </label>
-            <input
-              id="reason"
+            <Input
+              autoFocus
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Leaking shower"
-              className="w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none dark:border-white/20"
+              placeholder="Reason — recorded in the audit log"
             />
           </div>
         )}
 
         {err && (
-          <p role="alert" className="mt-3 rounded bg-status-ooo/10 px-3 py-2 text-xs text-status-ooo">
-            {err}
-          </p>
+          <div className="mt-3">
+            <Alert tone="danger">{err}</Alert>
+          </div>
         )}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 text-sm opacity-70 hover:opacity-100">
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => void submit()}
             disabled={!status || loading || (needsReason && reason.trim().length === 0)}
-            className="rounded-md bg-status-occupied px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {loading ? 'Saving…' : 'Update'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
