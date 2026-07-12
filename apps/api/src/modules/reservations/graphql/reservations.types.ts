@@ -101,3 +101,10 @@ export class AssignRoomGqlInput {
   @Field(() => ID) reservationRoomId!: string;
   @Field(() => ID) roomId!: string;
 }
+
+/** Check-in and check-out both hand back the folio — the clerk needs it next. */
+@ObjectType()
+export class CheckInPayloadGql {
+  @Field(() => ReservationGql) reservation!: ReservationGql;
+  @Field(() => ID) folioId!: string;
+}

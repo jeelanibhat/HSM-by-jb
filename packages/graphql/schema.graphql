@@ -37,6 +37,11 @@ input CancelReservationGqlInput {
   reservationId: ID!
 }
 
+type CheckInPayloadGql {
+  folioId: ID!
+  reservation: ReservationGql!
+}
+
 input CreateGuestGqlInput {
   email: String
   firstName: String!
@@ -79,6 +84,40 @@ input CreateRoomTypeGqlInput {
   name: String!
 }
 
+type FolioBalanceGql {
+  balance: Int!
+  charges: Int!
+  currency: String!
+  payments: Int!
+  tax: Int!
+}
+
+type FolioGql {
+  balanceMinor: Int!
+  currency: String!
+  folioNo: String!
+  guestId: ID!
+  id: ID!
+  lines: [FolioLineGql!]!
+  reservationId: ID
+  status: String!
+  type: String!
+}
+
+type FolioLineGql {
+  amountMinor: Int!
+  businessDate: String!
+  code: String!
+  currency: String!
+  description: String!
+  id: ID!
+  reason: String
+  reversesLineId: ID
+  taxAmountMinor: Int!
+  type: String!
+  voided: Boolean!
+}
+
 type GuestGql {
   anonymisedAt: String
   blacklisted: Boolean!
@@ -105,6 +144,13 @@ type Health {
   version: String!
 }
 
+type InvoiceGql {
+  folioId: ID!
+  id: ID!
+  invoiceNo: String!
+  issuedAt: String!
+}
+
 input LoginInput {
   email: String!
   password: String!
@@ -120,19 +166,42 @@ type Mutation {
   anonymiseGuest(input: AnonymiseGuestGqlInput!): GuestGql!
   assignRoom(input: AssignRoomGqlInput!): ReservationRoomGql!
   cancelReservation(input: CancelReservationGqlInput!): ReservationGql!
+  checkIn(reservationId: ID!): CheckInPayloadGql!
+  checkOut(reservationId: ID!): CheckInPayloadGql!
   createGuest(input: CreateGuestGqlInput!): GuestGql!
   createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
   createReservation(input: CreateReservationGqlInput!): ReservationGql!
   createRoom(input: CreateRoomGqlInput!): RoomGql!
   createRoomType(input: CreateRoomTypeGqlInput!): RoomTypeGql!
+  issueInvoice(folioId: ID!): InvoiceGql!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
   modifyReservation(input: ModifyReservationGqlInput!): ReservationGql!
+  postCharge(input: PostChargeGqlInput!): FolioBalanceGql!
+  postPayment(input: PostPaymentGqlInput!): FolioBalanceGql!
   refreshToken: AuthPayload!
   revealIdNumber(input: RevealIdGqlInput!): String!
   setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
+  voidFolioLine(input: VoidLineGqlInput!): FolioBalanceGql!
+}
+
+input PostChargeGqlInput {
+  amountMinor: Int!
+  code: String!
+  currency: String!
+  description: String!
+  folioId: ID!
+  quantity: Int! = 1
+}
+
+input PostPaymentGqlInput {
+  amountMinor: Int!
+  code: String!
+  currency: String!
+  folioId: ID!
+  reference: String
 }
 
 type PropertyRoleType {
@@ -156,6 +225,7 @@ type Query {
   availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
   currentProperty: PropertyType
   departures(date: String!): [ReservationGql!]!
+  folio(id: ID, reservationId: ID): FolioGql
   guest(id: ID!): GuestGql
   guestByIdNumber(idNumber: String!): GuestGql
   guestStays(guestId: ID!): [StayGql!]!
@@ -368,4 +438,9 @@ type UserType {
   id: ID!
   name: String!
   roles: [PropertyRoleType!]!
+}
+
+input VoidLineGqlInput {
+  folioLineId: ID!
+  reason: String!
 }

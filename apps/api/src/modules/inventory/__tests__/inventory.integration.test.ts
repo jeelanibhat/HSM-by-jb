@@ -45,14 +45,32 @@ const UPDATE_STATUS = `
   }
 `;
 
-/** Grab a seeded Alpha room in a known status, straight from the DB. */
+/**
+ * Take any Alpha room and PUT IT in the status we need, rather than hunting for one
+ * the seed happened to leave in that state.
+ *
+ * Depending on incidental seed state made this suite fragile: another suite that
+ * checked a guest out (leaving rooms VACANT_DIRTY) or cleaned up after itself
+ * (resetting them to VACANT_CLEAN) would silently remove the fixture this test was
+ * relying on, and the failure would point here rather than at the real cause. A test
+ * should create the condition it asserts on.
+ */
 async function roomInStatus(status: string) {
   const [row] = await owner`
-    SELECT id, number, status FROM inventory.rooms
-    WHERE property_id = ${ALPHA} AND status = ${status}
+    SELECT id, number FROM inventory.rooms
+    WHERE property_id = ${ALPHA}
+      AND id NOT IN (
+        SELECT room_id FROM reservations.reservation_rooms
+        WHERE room_id IS NOT NULL AND status NOT IN ('CANCELLED','NO_SHOW')
+      )
+    ORDER BY number
     LIMIT 1
   `;
-  return row as { id: string; number: string; status: string } | undefined;
+  if (!row) return undefined;
+
+  await owner`UPDATE inventory.rooms SET status = ${status} WHERE id = ${row['id']}`;
+
+  return { id: row['id'] as string, number: row['number'] as string, status };
 }
 
 async function setStatus(roomId: string, status: string) {

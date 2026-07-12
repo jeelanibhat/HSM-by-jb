@@ -78,6 +78,34 @@
       "when": 1783801306953,
       "tag": "0010_panoramic_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783848085635,
+      "tag": "0011_yellow_ender_wiggin",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783848128610,
+      "tag": "0012_folio_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783848593831,
+      "tag": "0013_taxes_no_duplicates",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1783849444976,
+      "tag": "0014_magical_arachne",
+      "breakpoints": true
     }
   ]
 }

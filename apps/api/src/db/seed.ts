@@ -71,8 +71,17 @@ async function main(): Promise<void> {
       ])
       .onConflictDoNothing();
 
-    // 12% GST at Alpha, 18% at Beta — different values, so a cross-tenant leak in
-    // a tax calculation shows up as a wrong number, not a coincidentally-right one.
+    /**
+     * 12% GST at Alpha, 18% at Beta — different values, so a cross-tenant leak in a
+     * tax calculation shows up as a wrong number rather than a coincidentally-right
+     * one.
+     *
+     * NOTE THE CONFLICT TARGET. `onConflictDoNothing()` with no target is a no-op:
+     * it silently inserts a duplicate every time the seed runs. Because every tax
+     * row is applied to every charge, three seed runs meant every guest was charged
+     * 36% GST. The unique index on (property_id, name) now makes that impossible,
+     * and this target makes the seed genuinely re-runnable.
+     */
     await db
       .insert(taxes)
       .values([
@@ -91,7 +100,7 @@ async function main(): Promise<void> {
           type: 'EXCLUSIVE',
         },
       ])
-      .onConflictDoNothing();
+      .onConflictDoNothing({ target: [taxes.propertyId, taxes.name] });
 
     const passwordHash = await argon2.hash(SEED.password, {
       type: argon2.argon2id,

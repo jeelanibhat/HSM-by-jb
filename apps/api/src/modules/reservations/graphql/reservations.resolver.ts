@@ -10,10 +10,12 @@ import type { z, ZodTypeAny } from 'zod';
 import { CurrentUser, PropertyId, Roles } from '../../identity';
 import type { AuthenticatedUser } from '../../identity';
 import { ReservationsService } from '../application/reservations.service';
+import { StayService } from '../application/stay.service';
 import {
   AssignRoomGqlInput,
   AvailabilityGql,
   CancelReservationGqlInput,
+  CheckInPayloadGql,
   CreateReservationGqlInput,
   ModifyReservationGqlInput,
   ReservationGql,
@@ -34,7 +36,10 @@ function parse<S extends ZodTypeAny>(schema: S, input: unknown): z.output<S> {
 
 @Resolver()
 export class ReservationsResolver {
-  constructor(private readonly service: ReservationsService) {}
+  constructor(
+    private readonly service: ReservationsService,
+    private readonly stay: StayService,
+  ) {}
 
   // ── Reads ─────────────────────────────────────────────────────────────────
 
@@ -143,5 +148,38 @@ export class ReservationsResolver {
       input.reservationRoomId,
       input.roomId,
     )) as ReservationRoomGql;
+  }
+
+  // ── Check-in / check-out (TDD step 8) ─────────────────────────────────────
+
+  @Roles('ADMIN', 'MANAGER', 'FRONT_DESK')
+  @Mutation(() => CheckInPayloadGql)
+  async checkIn(
+    @Args('reservationId', { type: () => ID }) reservationId: string,
+    @PropertyId() propertyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CheckInPayloadGql> {
+    const result = await this.stay.checkIn({ propertyId, userId: user.id }, reservationId);
+
+    return {
+      reservation: result.reservation as unknown as ReservationGql,
+      folioId: result.folioId,
+    };
+  }
+
+  /** Fails if the folio is not settled — see FolioService.assertSettled (TDD §6). */
+  @Roles('ADMIN', 'MANAGER', 'FRONT_DESK')
+  @Mutation(() => CheckInPayloadGql)
+  async checkOut(
+    @Args('reservationId', { type: () => ID }) reservationId: string,
+    @PropertyId() propertyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CheckInPayloadGql> {
+    const result = await this.stay.checkOut({ propertyId, userId: user.id }, reservationId);
+
+    return {
+      reservation: result.reservation as unknown as ReservationGql,
+      folioId: result.folioId,
+    };
   }
 }

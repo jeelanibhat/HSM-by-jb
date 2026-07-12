@@ -12,6 +12,7 @@ import {
   pgSchema,
   time,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -94,5 +95,20 @@ export const taxes = propertySchema.table(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [index('taxes_property_idx').on(t.propertyId)],
+  (t) => [
+    index('taxes_property_idx').on(t.propertyId),
+
+    /**
+     * One tax of a given name per property.
+     *
+     * Without this, nothing stops a second 'GST 12%' row existing — and every tax
+     * row is applied to every charge, so a duplicate silently charges the guest
+     * 24% and a triplicate 36%. It is invisible in the code, invisible in review,
+     * and shows up as a letter from a tax authority.
+     *
+     * A re-runnable seed hit exactly this. The seed is fixed too, but the seed was
+     * only ONE way to create the row — the database is where it has to be stopped.
+     */
+    unique('taxes_property_name_uq').on(t.propertyId, t.name),
+  ],
 );

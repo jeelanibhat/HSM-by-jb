@@ -19,6 +19,7 @@ import { PropertyModule } from './modules/property';
 import { InventoryModule } from './modules/inventory';
 import { ReservationsModule } from './modules/reservations';
 import { GuestsModule } from './modules/guests';
+import { FolioModule } from './modules/folio';
 
 @Module({
   imports: [
@@ -168,6 +169,7 @@ import { GuestsModule } from './modules/guests';
     PropertyModule,
     InventoryModule,
     GuestsModule,
+    FolioModule,
     ReservationsModule,
   ],
   // The global auth/tenancy/RBAC guards are registered inside IdentityModule —
