@@ -113,6 +113,12 @@ jobs:
           psql -h localhost -U hotelos -d hotelos -v ON_ERROR_STOP=1 \
             -f infra/postgres/init/02-app-role.sql
 
+      # db:seed imports @hotelos/domain, which is consumed as BUILT output. A dev
+      # machine always has a stale dist/ lying around, so this is invisible locally
+      # and fatal on a clean checkout. Build the api's dependencies (not the api).
+      - name: Build shared packages
+        run: pnpm exec turbo run build --filter='@hotelos/api^...'
+
       - name: Migrate
         run: pnpm --filter @hotelos/api db:migrate
 
@@ -214,13 +220,15 @@ jobs:
           psql -h localhost -U hotelos -d hotelos -v ON_ERROR_STOP=1 \
             -f infra/postgres/init/02-app-role.sql
 
+      # Build FIRST: db:seed imports @hotelos/domain as built output, and the suite
+      # runs against the production artefact anyway.
+      - name: Build (the artefact under test)
+        run: pnpm build
+
       - name: Migrate + seed
         run: |
           pnpm --filter @hotelos/api db:migrate
           pnpm --filter @hotelos/api db:seed
-
-      - name: Build (the artefact under test)
-        run: pnpm build
 
       - name: Install Chromium
         run: pnpm --filter @hotelos/e2e install:browsers
