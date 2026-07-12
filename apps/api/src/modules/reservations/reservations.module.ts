@@ -3,9 +3,11 @@ import { FolioModule } from '../folio';
 import { IdentityModule } from '../identity';
 import { InventoryModule } from '../inventory';
 import { AvailabilityService } from './application/availability.service';
+import { FrontDeskService } from './application/front-desk.service';
 import { ReservationsService } from './application/reservations.service';
 import { StayService } from './application/stay.service';
 import { TapeChartService } from './application/tape-chart.service';
+import { FrontDeskResolver } from './graphql/front-desk.resolver';
 import { ReservationsResolver } from './graphql/reservations.resolver';
 import { TapeChartResolver } from './graphql/tape-chart.resolver';
 
@@ -18,8 +20,10 @@ import { TapeChartResolver } from './graphql/tape-chart.resolver';
     AvailabilityService,
     StayService,
     TapeChartService,
+    FrontDeskService,
     ReservationsResolver,
     TapeChartResolver,
+    FrontDeskResolver,
   ],
   exports: [ReservationsService, AvailabilityService, TapeChartService, StayService],
 })

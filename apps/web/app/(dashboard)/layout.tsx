@@ -7,10 +7,18 @@ import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { MY_PROPERTIES, type Property } from '@/lib/graphql/operations';
 
-const NAV = [
+/**
+ * `roles` mirrors the server's @Roles() on each page's queries. It is a UX filter,
+ * not a security control — the API refuses regardless. But showing a housekeeper a
+ * "Reports" tab that only ever produces "Insufficient permissions" trains people to
+ * ignore error messages, which is its own kind of harm.
+ */
+const NAV: Array<{ href: string; label: string; roles?: string[] }> = [
   { href: '/front-desk', label: 'Front desk' },
   { href: '/tape-chart', label: 'Tape chart' },
   { href: '/rooms', label: 'Rooms' },
+  { href: '/night-audit', label: 'Night audit', roles: ['ADMIN', 'MANAGER'] },
+  { href: '/reports', label: 'Reports', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -45,19 +53,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="text-sm font-semibold tracking-tight">HotelOS</span>
 
           <nav className="flex items-center gap-1">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`rounded px-2 py-1 text-sm transition-opacity ${
-                  pathname === item.href
-                    ? 'bg-black/5 font-medium dark:bg-white/10'
-                    : 'opacity-60 hover:opacity-100'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV.filter((item) => !item.roles || (role && item.roles.includes(role))).map(
+              (item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`rounded px-2 py-1 text-sm transition-opacity ${
+                    pathname === item.href
+                      ? 'bg-black/5 font-medium dark:bg-white/10'
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </nav>
 
           {/* The property switcher. Only lists hotels this user holds a role at —

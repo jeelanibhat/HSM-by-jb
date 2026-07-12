@@ -155,6 +155,33 @@ type FolioLineGql {
   voided: Boolean!
 }
 
+type FrontDeskBoardGql {
+  arrivals: [FrontDeskRowGql!]!
+  businessDate: String!
+  departures: [FrontDeskRowGql!]!
+  inHouse: [FrontDeskRowGql!]!
+}
+
+type FrontDeskRowGql {
+  adults: Int!
+  arrivalDate: String!
+  balanceMinor: Int!
+  children: Int!
+  confirmationNo: String!
+  departureDate: String!
+  folioId: ID
+  guestId: ID!
+  guestName: String!
+  reservationId: ID!
+  reservationRoomId: ID!
+  roomId: ID
+  roomNumber: String
+  roomTypeCode: String!
+  roomTypeId: ID!
+  status: String!
+  vip: Boolean!
+}
+
 type GuestGql {
   anonymisedAt: String
   blacklisted: Boolean!
@@ -280,6 +307,7 @@ type Query {
   dailyRevenueReport(date: String!): DailyRevenueReportGql!
   departures(date: String!): [ReservationGql!]!
   folio(id: ID, reservationId: ID): FolioGql
+  frontDeskBoard(date: String!): FrontDeskBoardGql!
   guest(id: ID!): GuestGql
   guestByIdNumber(idNumber: String!): GuestGql
   guestStays(guestId: ID!): [StayGql!]!
