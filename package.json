@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",
-    "e2e": "pnpm --filter @hotelos/e2e test",
+    "e2e": "pnpm --filter @hotelos/e2e e2e",
     "db:up": "podman compose up -d",
     "db:down": "podman compose down",
     "db:reset": "podman compose down -v && podman compose up -d",

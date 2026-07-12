@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "//": "NOT called `test`. `turbo run test` is the fast, hermetic gate — a Playwright suite that needs Postgres and two production servers has no business being dragged into it.",
+    "e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
