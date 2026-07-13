@@ -32,8 +32,36 @@ export const ROOM_STATUSES = [
 ] as const;
 export type RoomStatus = (typeof ROOM_STATUSES)[number];
 
-export const HOUSEKEEPING_STATUSES = ['CLEAN', 'DIRTY', 'INSPECTED', 'IN_PROGRESS'] as const;
-export type HousekeepingStatus = (typeof HOUSEKEEPING_STATUSES)[number];
+/**
+ * Housekeeping work is a TASK, not a room status. The room already has a status
+ * (ROOM_STATUSES) — what a room needs today, who is doing it, and whether anyone
+ * checked afterwards is a separate thing with its own life.
+ *
+ *   DEPARTURE  — the guest has gone; a full turnover before the next arrival
+ *   STAYOVER   — the guest is still in the room; a service clean
+ *   DEEP_CLEAN — periodic, or after an OOO repair
+ *   TURNDOWN   — evening service
+ */
+export const HOUSEKEEPING_TASK_TYPES = [
+  'DEPARTURE',
+  'STAYOVER',
+  'DEEP_CLEAN',
+  'TURNDOWN',
+] as const;
+export type HousekeepingTaskType = (typeof HOUSEKEEPING_TASK_TYPES)[number];
+
+/**
+ * DONE means "the attendant says it is clean". INSPECTED means "a supervisor
+ * looked". They are deliberately not the same state — collapsing them is how a
+ * room gets sold on somebody's word.
+ */
+export const HOUSEKEEPING_TASK_STATUSES = [
+  'PENDING',
+  'IN_PROGRESS',
+  'DONE',
+  'INSPECTED',
+] as const;
+export type HousekeepingTaskStatus = (typeof HOUSEKEEPING_TASK_STATUSES)[number];
 
 export const FOLIO_STATUSES = ['OPEN', 'CLOSED', 'SETTLED'] as const;
 export type FolioStatus = (typeof FOLIO_STATUSES)[number];

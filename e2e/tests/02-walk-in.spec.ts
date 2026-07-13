@@ -1,5 +1,5 @@
 import { BUSINESS_DATE, sellableRooms } from '../support/db';
-import { bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
+import { assignRoom, bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
 
 /**
  * TDD §8.3, case 2 — "Walk-in with immediate check-in".
@@ -24,8 +24,7 @@ test('walk-in: book and check in immediately', async ({ asRole, sql }) => {
 
   const [room] = await sellableRooms(sql, 'DLX', 1);
 
-  await guestRow(page, 'Rahul Iyer').getByRole('button', { name: 'Assign room' }).click();
-  await page.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(page, 'Rahul Iyer', room!.number);
 
   await guestRow(page, 'Rahul Iyer').getByRole('button', { name: 'Check in' }).click();
   await expect(page.getByText(/Rahul Iyer checked in/i)).toBeVisible();

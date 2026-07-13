@@ -177,6 +177,24 @@ export function guestRow(page: Page, name: string) {
 }
 
 /**
+ * Give a guest a room, through the picker that belongs to THEM.
+ *
+ * Scoped to the named picker on purpose. Two pickers can be open at once — one clerk's
+ * assignment is still in flight (its buttons disabled) while the next one opens — and
+ * an unscoped `getByRole('button', { name: '101' })` then matches both. That is not a
+ * flaky test; it is the page genuinely being ambiguous, and a screen reader would have
+ * had the same problem.
+ */
+export async function assignRoom(page: Page, guestName: string, roomNumber: string) {
+  await guestRow(page, guestName).getByRole('button', { name: 'Assign room' }).click();
+
+  await page
+    .getByRole('group', { name: `Rooms for ${guestName}` })
+    .getByRole('button', { name: roomNumber, exact: true })
+    .click();
+}
+
+/**
  * The app's own alerts. Next.js renders a permanently-empty route announcer with
  * role="alert", so a bare getByRole('alert') is ambiguous.
  */

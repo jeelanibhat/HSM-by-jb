@@ -7,6 +7,11 @@ input AnonymiseGuestGqlInput {
   reason: String!
 }
 
+input AssignHousekeepingTaskGqlInput {
+  assignedTo: ID
+  taskId: ID!
+}
+
 input AssignRoomGqlInput {
   reservationRoomId: ID!
   roomId: ID!
@@ -49,6 +54,11 @@ type CheckInPayloadGql {
   reservation: ReservationGql!
 }
 
+input CompleteHousekeepingTaskGqlInput {
+  notes: String
+  taskId: ID!
+}
+
 input CreateGuestGqlInput {
   email: String
   firstName: String!
@@ -57,6 +67,13 @@ input CreateGuestGqlInput {
   lastName: String!
   phone: String
   vip: Boolean
+}
+
+input CreateHousekeepingTaskGqlInput {
+  businessDate: String
+  notes: String
+  roomId: ID!
+  type: HousekeepingTaskType!
 }
 
 input CreateRatePlanGqlInput {
@@ -121,6 +138,11 @@ type DailyStatsGql {
   taxMinor: Int!
 }
 
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type FolioBalanceGql {
   balance: Int!
   charges: Int!
@@ -182,6 +204,15 @@ type FrontDeskRowGql {
   vip: Boolean!
 }
 
+type GenerateBoardResultGql {
+  businessDate: String!
+  created: Int!
+}
+
+input GenerateHousekeepingBoardGqlInput {
+  businessDate: String
+}
+
 type GuestGql {
   anonymisedAt: String
   blacklisted: Boolean!
@@ -208,6 +239,56 @@ type Health {
   version: String!
 }
 
+type HousekeepingAttendantGql {
+  id: ID!
+  name: String!
+}
+
+type HousekeepingTaskGql {
+  assignedTo: ID
+  assigneeName: String
+  businessDate: String!
+  completedAt: DateTime
+  credits: Int!
+  failedInspections: Int!
+  id: ID!
+  inspectedAt: DateTime
+  inspectionNote: String
+  notes: String
+  roomFloor: String
+  roomId: ID!
+  roomNumber: String!
+  roomStatus: String!
+  roomTypeCode: String!
+  startedAt: DateTime
+  status: HousekeepingTaskStatus!
+  type: HousekeepingTaskType!
+}
+
+"""
+PENDING | IN_PROGRESS | DONE (the attendant says so) | INSPECTED (a supervisor checked)
+"""
+enum HousekeepingTaskStatus {
+  DONE
+  INSPECTED
+  IN_PROGRESS
+  PENDING
+}
+
+"""DEPARTURE (turnover) | STAYOVER (service) | DEEP_CLEAN | TURNDOWN"""
+enum HousekeepingTaskType {
+  DEEP_CLEAN
+  DEPARTURE
+  STAYOVER
+  TURNDOWN
+}
+
+input InspectHousekeepingTaskGqlInput {
+  passed: Boolean!
+  reason: String
+  taskId: ID!
+}
+
 type InvoiceGql {
   folioId: ID!
   id: ID!
@@ -228,15 +309,20 @@ input ModifyReservationGqlInput {
 
 type Mutation {
   anonymiseGuest(input: AnonymiseGuestGqlInput!): GuestGql!
+  assignHousekeepingTask(input: AssignHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   assignRoom(input: AssignRoomGqlInput!): ReservationRoomGql!
   cancelReservation(input: CancelReservationGqlInput!): ReservationGql!
   checkIn(reservationId: ID!): CheckInPayloadGql!
   checkOut(reservationId: ID!): CheckInPayloadGql!
+  completeHousekeepingTask(input: CompleteHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   createGuest(input: CreateGuestGqlInput!): GuestGql!
+  createHousekeepingTask(input: CreateHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
   createReservation(input: CreateReservationGqlInput!): ReservationGql!
   createRoom(input: CreateRoomGqlInput!): RoomGql!
   createRoomType(input: CreateRoomTypeGqlInput!): RoomTypeGql!
+  generateHousekeepingBoard(input: GenerateHousekeepingBoardGqlInput): GenerateBoardResultGql!
+  inspectHousekeepingTask(input: InspectHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   issueInvoice(folioId: ID!): InvoiceGql!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
@@ -248,6 +334,7 @@ type Mutation {
   runNightAudit: NightAuditPayloadGql!
   setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
+  startHousekeepingTask(input: StartHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
   voidFolioLine(input: VoidLineGqlInput!): FolioBalanceGql!
 }
@@ -312,6 +399,8 @@ type Query {
   guestByIdNumber(idNumber: String!): GuestGql
   guestStays(guestId: ID!): [StayGql!]!
   health: Health!
+  housekeepingAttendants: [HousekeepingAttendantGql!]!
+  housekeepingBoard(date: String): [HousekeepingTaskGql!]!
   me: UserType!
   myProperties: [PropertyType!]!
   nightAuditRuns: [NightAuditRunGql!]!
@@ -471,6 +560,10 @@ input SetRatePricesGqlInput {
   ratePlanId: ID!
   roomTypeId: ID!
   to: String!
+}
+
+input StartHousekeepingTaskGqlInput {
+  taskId: ID!
 }
 
 type StayGql {

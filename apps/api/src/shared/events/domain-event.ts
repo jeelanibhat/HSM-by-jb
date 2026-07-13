@@ -1,9 +1,12 @@
 /**
- * The Phase 1 event catalog (TDD §6).
+ * The event catalog (TDD §6).
  *
  * Events are the ONLY way modules talk to each other about things that happened
  * (TDD §2, principle 3) — check-in emits `reservation.checked_in`; housekeeping
  * and folio react. No cross-module service calls, no cross-module joins.
+ *
+ * Deliberately a CLOSED union: emitting an event that is not listed here is a
+ * compile error, not a string that quietly nobody subscribes to.
  */
 export const EVENT_TYPES = [
   'reservation.created',
@@ -16,6 +19,13 @@ export const EVENT_TYPES = [
   'folio.line_voided',
   'room.status_changed',
   'night_audit.completed',
+
+  // Phase 2 — housekeeping.
+  'housekeeping.task_assigned',
+  'housekeeping.task_completed',
+  'housekeeping.task_inspected',
+  /** The supervisor sent the room back. The room is dirty again. */
+  'housekeeping.inspection_failed',
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -42,6 +42,9 @@ const SECTIONS: NavSection[] = [
       },
       { href: '/tape-chart', label: 'Tape chart', icon: Icon.Calendar },
       { href: '/rooms', label: 'Rooms', icon: Icon.Bed },
+      // No `roles`: housekeeping obviously needs it, and the front desk needs to
+      // know which rooms are ready before they hand anyone a key.
+      { href: '/housekeeping', label: 'Housekeeping', icon: Icon.Broom },
     ],
   },
   {

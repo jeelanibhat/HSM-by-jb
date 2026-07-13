@@ -1,5 +1,5 @@
 import { BUSINESS_DATE, sellableRooms } from '../support/db';
-import { bookThroughUi, expect, frontDesk, guestRow, nav, test } from '../support/fixtures';
+import { assignRoom, bookThroughUi, expect, frontDesk, guestRow, nav, test } from '../support/fixtures';
 
 /**
  * TDD §8.3, case 6 — "RBAC: housekeeping role cannot access cashiering".
@@ -22,8 +22,7 @@ test('housekeeping cannot reach cashiering, and is not offered it', async ({ asR
   });
 
   await frontDesk(desk, 'Arrivals');
-  await guestRow(desk, 'Billed Guest').getByRole('button', { name: 'Assign room' }).click();
-  await desk.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(desk, 'Billed Guest', room!.number);
   await guestRow(desk, 'Billed Guest').getByRole('button', { name: 'Check in' }).click();
   await expect(desk.getByText(/Billed Guest checked in/i)).toBeVisible();
 

@@ -1,5 +1,5 @@
 import { BUSINESS_DATE, sellableRooms } from '../support/db';
-import { bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
+import { assignRoom, bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
 
 /**
  * TDD §8.3, case 3 — "Attempt double-book same room/date → expect rejection UI".
@@ -35,15 +35,13 @@ test('the same room cannot be given to two overlapping stays, and the UI says wh
   await frontDesk(page, 'Arrivals');
 
   // The first guest takes the room.
-  await guestRow(page, 'First Guest').getByRole('button', { name: 'Assign room' }).click();
-  await page.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(page, 'First Guest', room!.number);
   await expect(guestRow(page, 'First Guest').getByText(room!.number)).toBeVisible();
 
   // The second guest tries the SAME room. The picker still offers it — the exclusion
   // constraint needs the dates to decide, and a room that silently vanished from the
   // list would tell the clerk nothing.
-  await guestRow(page, 'Second Guest').getByRole('button', { name: 'Assign room' }).click();
-  await page.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(page, 'Second Guest', room!.number);
 
   // The database's refusal, verbatim, naming the room.
   await expect(
@@ -81,8 +79,7 @@ test('ALLOWS same-day turnover: one guest departs, the next arrives, same room',
   });
 
   await frontDesk(page, 'Arrivals');
-  await guestRow(page, 'Departing Guest').getByRole('button', { name: 'Assign room' }).click();
-  await page.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(page, 'Departing Guest', room!.number);
   await expect(guestRow(page, 'Departing Guest').getByText(room!.number)).toBeVisible();
 
   // Arrives the very day the other leaves.

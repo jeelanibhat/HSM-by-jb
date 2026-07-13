@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import {
   FOLIO_LINE_TYPES,
+  HOUSEKEEPING_TASK_TYPES,
   RESERVATION_SOURCES,
   ROLES,
   ROOM_STATUSES,
@@ -190,6 +191,52 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type CreateRatePlanInput = z.infer<typeof createRatePlanSchema>;
 export type SetRatePricesInput = z.infer<typeof setRatePricesSchema>;
 export type UpdateRoomStatusInput = z.infer<typeof updateRoomStatusSchema>;
+
+// ── Housekeeping (Phase 2) ──────────────────────────────────────────────────
+
+export const housekeepingTaskTypeSchema = z.enum(HOUSEKEEPING_TASK_TYPES);
+
+/** Build the day's board from who is departing and who is staying over. */
+export const generateHousekeepingBoardSchema = z.object({
+  businessDate: businessDateSchema.optional(),
+});
+
+export const assignHousekeepingTaskSchema = z.object({
+  taskId: uuidSchema,
+  /** null un-assigns — the task goes back on the board for anyone to pick up. */
+  assignedTo: uuidSchema.nullable(),
+});
+
+export const startHousekeepingTaskSchema = z.object({ taskId: uuidSchema });
+
+export const completeHousekeepingTaskSchema = z.object({
+  taskId: uuidSchema,
+  notes: z.string().trim().max(500).optional(),
+});
+
+export const inspectHousekeepingTaskSchema = z.object({
+  taskId: uuidSchema,
+  passed: z.boolean(),
+  /**
+   * A failed inspection sends the room back to dirty and the attendant back to the
+   * room. They are owed a reason — "failed" on its own is not actionable.
+   */
+  reason: z.string().trim().max(500).optional(),
+});
+
+export const createHousekeepingTaskSchema = z.object({
+  roomId: uuidSchema,
+  type: housekeepingTaskTypeSchema,
+  businessDate: businessDateSchema.optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
+export type GenerateHousekeepingBoardInput = z.infer<typeof generateHousekeepingBoardSchema>;
+export type AssignHousekeepingTaskInput = z.infer<typeof assignHousekeepingTaskSchema>;
+export type StartHousekeepingTaskInput = z.infer<typeof startHousekeepingTaskSchema>;
+export type CompleteHousekeepingTaskInput = z.infer<typeof completeHousekeepingTaskSchema>;
+export type InspectHousekeepingTaskInput = z.infer<typeof inspectHousekeepingTaskSchema>;
+export type CreateHousekeepingTaskInput = z.infer<typeof createHousekeepingTaskSchema>;
 
 export const folioLineTypeSchema = z.enum(FOLIO_LINE_TYPES);
 export const roleSchema = z.enum(ROLES);

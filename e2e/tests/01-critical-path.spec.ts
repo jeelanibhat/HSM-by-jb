@@ -1,5 +1,5 @@
 import { ALPHA, BUSINESS_DATE, sellableRooms } from '../support/db';
-import { bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
+import { assignRoom, bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
 
 /**
  * TDD §8.3, case 1 — THE critical path.
@@ -36,10 +36,8 @@ test('create → assign → check-in → charge → pay → check-out → folio 
   const row = guestRow(page, 'Priya Sharma');
   await expect(row.getByText('unassigned')).toBeVisible();
 
-  await row.getByRole('button', { name: 'Assign room' }).click();
-
   const [room] = await sellableRooms(sql, 'STD', 1);
-  await page.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(page, 'Priya Sharma', room!.number);
 
   await expect(guestRow(page, 'Priya Sharma').getByText(room!.number)).toBeVisible();
 

@@ -384,7 +384,17 @@ function AssignRoomPicker({
   };
 
   return (
-    <div className="rounded-lg bg-canvas p-3">
+    /**
+     * Named, because a bare grid of numbers tells a screen-reader user nothing about
+     * WHOSE room they are picking — and two of these can be open at once (one clerk
+     * assigning while another's mutation is still in flight), which makes "the button
+     * labelled 101" genuinely ambiguous to a human and a machine alike.
+     */
+    <div
+      role="group"
+      aria-label={`Rooms for ${row.guestName}`}
+      className="rounded-lg bg-canvas p-3"
+    >
       <p className="mb-2 text-[11px] text-muted">
         Rooms of type <strong className="font-semibold text-ink">{row.roomTypeCode}</strong> that
         are not out of order:

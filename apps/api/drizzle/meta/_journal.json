@@ -127,6 +127,20 @@
       "when": 1783879601808,
       "tag": "0017_contract_drop_guest_id_number",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783967946470,
+      "tag": "0018_housekeeping_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783968003009,
+      "tag": "0019_housekeeping_rls_grants",
+      "breakpoints": true
     }
   ]
 }

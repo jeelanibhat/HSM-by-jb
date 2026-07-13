@@ -17,13 +17,21 @@ export function Card({
   children,
   className,
   padded = true,
+  label,
 }: {
   children: React.ReactNode;
   className?: string | undefined;
   padded?: boolean;
+  /**
+   * Names the card. A board of cards that all look alike — one per room — is a list
+   * of anonymous boxes to a screen reader, and ambiguous to anything else trying to
+   * point at one of them. Naming it makes "the card for room 204" a thing that exists.
+   */
+  label?: string | undefined;
 }) {
   return (
     <div
+      {...(label ? { role: 'group', 'aria-label': label } : {})}
       className={cn(
         'rounded-card border border-line bg-card shadow-card',
         padded && 'p-5',

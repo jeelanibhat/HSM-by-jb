@@ -1,5 +1,5 @@
 import { ALPHA, BUSINESS_DATE, sellableRooms } from '../support/db';
-import { bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
+import { assignRoom, bookThroughUi, expect, frontDesk, guestRow, test } from '../support/fixtures';
 
 /**
  * TDD §8.3, case 4 — "Night audit run → business date advances, room charges posted,
@@ -22,8 +22,7 @@ test('night audit: charges posted, no-shows marked, business date advances', asy
   });
 
   await frontDesk(desk, 'Arrivals');
-  await guestRow(desk, 'InHouse Guest').getByRole('button', { name: 'Assign room' }).click();
-  await desk.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(desk, 'InHouse Guest', room!.number);
   await guestRow(desk, 'InHouse Guest').getByRole('button', { name: 'Check in' }).click();
   await expect(desk.getByText(/InHouse Guest checked in/i)).toBeVisible();
 
@@ -130,8 +129,7 @@ test('re-running the audit does NOT charge the guest twice', async ({ asRole, sq
   });
 
   await frontDesk(desk, 'Arrivals');
-  await guestRow(desk, 'Twice Charged').getByRole('button', { name: 'Assign room' }).click();
-  await desk.getByRole('button', { name: room!.number, exact: true }).click();
+  await assignRoom(desk, 'Twice Charged', room!.number);
   await guestRow(desk, 'Twice Charged').getByRole('button', { name: 'Check in' }).click();
   await expect(desk.getByText(/Twice Charged checked in/i)).toBeVisible();
 

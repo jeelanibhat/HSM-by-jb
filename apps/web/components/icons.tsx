@@ -41,6 +41,14 @@ export const Icon = {
       <path d="M3 14h18M3 18h18M7 9V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2" stroke="currentColor" />
     </svg>
   ),
+  Broom: (p: P) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
+      <path d="M14 4 9.5 8.5" stroke="currentColor" strokeLinecap="round" />
+      <path d="M12.5 7 17 11.5" stroke="currentColor" strokeLinecap="round" />
+      <path d="M6 20c-1.5-1.5-1.5-4 0-5.5L9.5 11l3.5 3.5-3.5 3.5C8 19.5 7.5 20 6 20Z" stroke="currentColor" strokeLinejoin="round" />
+      <path d="M6 20h7" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  ),
   Moon: (p: P) => (
     <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
       <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" />
