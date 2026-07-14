@@ -19,6 +19,8 @@ import { properties, taxes } from '../../property/infra/schema';
 import { reservationRooms, reservations } from '../../reservations/infra/schema';
 // Through the facade, not the table. The frozen snapshot has one author.
 import { ReportingService } from '../../reporting';
+// Likewise: the board has one author, and it is not the night audit.
+import { HousekeepingService } from '../../housekeeping';
 
 /**
  * The night audit sequence (TDD §6), in order. Each step is idempotent and each
@@ -34,6 +36,19 @@ export const AUDIT_STEPS = [
   'MARK_NO_SHOWS',
   'SNAPSHOT_STATS',
   'ADVANCE_BUSINESS_DATE',
+
+  /**
+   * LAST, and after the date has moved — on purpose.
+   *
+   * The board it builds is for the day that has just BEGUN: the guests leaving this
+   * morning, the guests staying on, and the rooms already standing empty. Generating
+   * it before the date advanced would build yesterday's board a second time.
+   *
+   * It is also the only step that may be skipped without consequence — a hotel with
+   * no housekeeping staff on the system still wants its charges posted and its books
+   * closed — so it runs last, where a failure costs nothing that came before it.
+   */
+  'GENERATE_HOUSEKEEPING_BOARD',
 ] as const;
 
 export type AuditStep = (typeof AUDIT_STEPS)[number];
@@ -61,6 +76,7 @@ export class NightAuditService {
     private readonly uow: TransactionalUnitOfWork,
     private readonly tx: TenantTransaction,
     private readonly reporting: ReportingService,
+    private readonly housekeeping: HousekeepingService,
   ) {}
 
   /**
@@ -148,7 +164,33 @@ export class NightAuditService {
         return this.snapshotStats(actor, auditDate);
       case 'ADVANCE_BUSINESS_DATE':
         return this.advanceBusinessDate(actor, auditDate);
+      case 'GENERATE_HOUSEKEEPING_BOARD':
+        return this.generateHousekeepingBoard(actor, auditDate);
     }
+  }
+
+  /**
+   * Step 5 — build the morning's housekeeping board, for the day that has just begun.
+   *
+   * The supervisor arrives to a board that is already there, instead of remembering to
+   * press a button before anyone can be given a room to clean.
+   *
+   * `generateBoard` is idempotent (UNIQUE(room, date, type)), so this is safe to
+   * re-run after a crash and safe for a supervisor to press again afterwards — the
+   * second call creates nothing and resets nothing already underway.
+   */
+  private async generateHousekeepingBoard(
+    actor: ActorContext,
+    auditDate: BusinessDate,
+  ): Promise<string> {
+    // The date has already moved: this is the NEW trading day, not the one just closed.
+    const today = nextDay(auditDate);
+
+    const { created } = await this.housekeeping.generateBoard(actor, today);
+
+    return created === 0
+      ? `No housekeeping raised for ${today} — the board was already up to date.`
+      : `Raised ${created} housekeeping task(s) for ${today}.`;
   }
 
   /**

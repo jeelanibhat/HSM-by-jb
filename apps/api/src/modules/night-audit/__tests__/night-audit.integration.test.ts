@@ -111,6 +111,7 @@ async function checkedInStay(last: string, arrival = D0, departure = '2026-07-14
 }
 
 async function wipe() {
+  await owner`DELETE FROM housekeeping.tasks WHERE property_id = ${ALPHA}`;
   await owner`DELETE FROM reporting.daily_stats WHERE property_id = ${ALPHA}`;
   await owner`DELETE FROM shared.night_audit_runs WHERE property_id = ${ALPHA}`;
   await owner`DELETE FROM folio.invoices WHERE property_id = ${ALPHA}`;
@@ -499,16 +500,78 @@ describe('advancing the business date', () => {
   });
 });
 
+/**
+ * The last step: the supervisor should arrive to a board that is already there, rather
+ * than having to remember to press a button before anyone can be given a room to clean.
+ */
+describe('raising the morning’s housekeeping', () => {
+  it('leaves a board for the day that has just BEGUN, not the one that just closed', async () => {
+    const { reservationId } = await checkedInStay('Staying', D0, '2026-07-14');
+    expect(reservationId).toBeTruthy();
+
+    await gql(RUN);
+
+    const tasks = await owner`
+      SELECT business_date, type FROM housekeeping.tasks WHERE property_id = ${ALPHA}
+    `;
+
+    expect(tasks.length, 'the audit closed the books and left no work for the morning').toBeGreaterThan(0);
+
+    // D1, not D0. Generating before the date advanced would rebuild yesterday's board.
+    for (const t of tasks) expect(t['business_date']).toBe(D1);
+
+    // The guest is staying on, so their room is a service clean, not a turnover.
+    const staying = tasks.find((t) => t['type'] === 'STAYOVER');
+    expect(staying, 'a guest staying the night got no stayover clean').toBeTruthy();
+  });
+
+  it('is idempotent — a resumed audit does not double the morning', async () => {
+    await checkedInStay('Resumed', D0, '2026-07-14');
+
+    await gql(RUN);
+    const [first] = await owner`SELECT count(*)::int AS n FROM housekeeping.tasks WHERE property_id = ${ALPHA}`;
+
+    // Wind back and re-run, exactly as an operator does after a crash.
+    await owner`UPDATE property.properties SET business_date = ${D0} WHERE id = ${ALPHA}`;
+    await owner`UPDATE shared.night_audit_runs SET status = 'FAILED' WHERE property_id = ${ALPHA}`;
+
+    await gql(RUN);
+
+    const [second] = await owner`SELECT count(*)::int AS n FROM housekeeping.tasks WHERE property_id = ${ALPHA}`;
+    expect(Number(second!['n']), 'the resumed audit duplicated the board').toBe(Number(first!['n']));
+  });
+
+  it('does not reset work a supervisor started before the audit finished', async () => {
+    // The audit runs at 3am; someone is already cleaning a room from yesterday.
+    await checkedInStay('Overnight', D0, '2026-07-14');
+    await gql(RUN);
+
+    await owner`UPDATE housekeeping.tasks SET status = 'IN_PROGRESS' WHERE property_id = ${ALPHA}`;
+
+    await owner`UPDATE property.properties SET business_date = ${D0} WHERE id = ${ALPHA}`;
+    await owner`UPDATE shared.night_audit_runs SET status = 'FAILED' WHERE property_id = ${ALPHA}`;
+    await gql(RUN);
+
+    const rows = await owner`SELECT status FROM housekeeping.tasks WHERE property_id = ${ALPHA}`;
+    for (const r of rows) {
+      expect(r['status'], 'the audit wiped work already underway').toBe('IN_PROGRESS');
+    }
+  });
+});
+
 describe('the run record', () => {
   it('records every step', async () => {
     const res = await gql(RUN);
     const steps = res.body.data.runNightAudit.steps;
 
+    // In order, and the ORDER is the point: housekeeping is raised only after the
+    // business date has moved, or it would rebuild the day that just closed.
     expect(steps.map((s: { step: string }) => s.step)).toEqual([
       'POST_ROOM_CHARGES',
       'MARK_NO_SHOWS',
       'SNAPSHOT_STATS',
       'ADVANCE_BUSINESS_DATE',
+      'GENERATE_HOUSEKEEPING_BOARD',
     ]);
     expect(steps.every((s: { status: string }) => s.status === 'COMPLETED')).toBe(true);
   });

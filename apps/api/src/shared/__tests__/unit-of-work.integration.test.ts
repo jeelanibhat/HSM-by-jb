@@ -79,7 +79,21 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await cleanupProperties(owner, [PROPERTY, OTHER_PROPERTY], ORG);
-  await owner`DELETE FROM shared.outbox_events WHERE payload->>'propertyId' IN (${PROPERTY}, ${OTHER_PROPERTY})`;
+
+  /**
+   * Empty the WHOLE outbox, not just this suite's rows.
+   *
+   * The relay is a global, cross-tenant queue by design, and it is disabled during
+   * tests — so every other suite leaves its events sitting there unprocessed, and they
+   * pile up across runs. A relay test that shares the queue with that backlog is not
+   * testing the relay: `drain(5)` claims the OLDEST rows first, so it spends its
+   * batches on other suites' events and its own assertions become a function of how
+   * much housekeeping ran earlier. (That is exactly how this broke.)
+   *
+   * This suite owns shared.outbox_events. Nothing else asserts on it after its own
+   * file has finished, and files run sequentially.
+   */
+  await owner`DELETE FROM shared.outbox_events`;
 
   await owner`INSERT INTO property.organizations (id, name) VALUES (${ORG}, 'UoW Fixture Group')`;
   await owner`

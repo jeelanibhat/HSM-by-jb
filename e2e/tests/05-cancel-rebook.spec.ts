@@ -18,7 +18,14 @@ test('cancelling releases inventory, and the room can be sold again', async ({
   await page.goto('/reservations/new');
   await page.getByLabel('Arrival').fill(BUSINESS_DATE);
   await page.getByLabel('Departure').fill('2026-07-13');
-  await expect(roomTypeRadio(page, 'SUITE')).toBeVisible({ timeout: 20_000 });
+  /**
+   * Wait for it to be ENABLED, not merely visible.
+   *
+   * Until the availability query resolves, `free` is 0 and the type renders as "sold
+   * out" — so reading the count on a visible-but-unloaded radio reports zero suites in
+   * a hotel that has three. Enabled means the number arrived AND it is not zero.
+   */
+  await expect(roomTypeRadio(page, 'SUITE')).toBeEnabled({ timeout: 25_000 });
 
   const total = await roomsFree(page, 'SUITE');
   expect(total).toBeGreaterThan(0);

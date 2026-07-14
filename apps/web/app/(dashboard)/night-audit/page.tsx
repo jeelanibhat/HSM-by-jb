@@ -14,6 +14,7 @@ const STEP_LABEL: Record<string, string> = {
   MARK_NO_SHOWS: 'Mark no-shows, release rooms',
   SNAPSHOT_STATS: 'Freeze occupancy, ADR, RevPAR',
   ADVANCE_BUSINESS_DATE: 'Advance the business date',
+  GENERATE_HOUSEKEEPING_BOARD: 'Raise the morning’s housekeeping',
 };
 
 /**
