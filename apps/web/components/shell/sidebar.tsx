@@ -56,6 +56,19 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    heading: 'Distribution',
+    items: [
+      {
+        href: '/channels',
+        label: 'Channels',
+        icon: Icon.Globe,
+        // Connecting an OTA and deciding what sells on it is a management call — not the
+        // front desk's, and not a waiter's.
+        roles: ['ADMIN', 'MANAGER'],
+      },
+    ],
+  },
+  {
     heading: 'Back office',
     items: [
       {

@@ -55,6 +55,16 @@ export const Icon = {
       <path d="M9 8h6M9 12h6" stroke="currentColor" strokeLinecap="round" />
     </svg>
   ),
+  Globe: (p: P) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" />
+      <path
+        d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
   Moon: (p: P) => (
     <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
       <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" />

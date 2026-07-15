@@ -8,5 +8,6 @@
  */
 export { ReservationsModule } from './reservations.module';
 export { ReservationsService } from './application/reservations.service';
+export type { CreateReservationInput } from './application/reservations.service';
 export { AvailabilityService, NoAvailabilityError } from './application/availability.service';
 export type { AvailabilityRow } from './application/availability.service';

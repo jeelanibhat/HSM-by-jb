@@ -16,6 +16,11 @@ import { roles, userPropertyRoles, users } from '../modules/identity/infra/schem
 import { organizations, properties, taxes } from '../modules/property/infra/schema';
 import { ratePlans, ratePrices, rooms, roomTypes } from '../modules/inventory/infra/schema';
 import { menuItems, outlets } from '../modules/pos/infra/schema';
+import {
+  channelRatePlanMappings,
+  channelRoomTypeMappings,
+  channels,
+} from '../modules/channels/infra/schema';
 
 const OWNER_URL =
   process.env['DATABASE_MIGRATION_URL'] ?? 'postgresql://hotelos:hotelos@localhost:5432/hotelos';
@@ -318,10 +323,63 @@ async function main(): Promise<void> {
       )
       .onConflictDoNothing({ target: [menuItems.outletId, menuItems.code] });
 
+    // ── Channel manager: one simulated OTA, mapped and enabled (Phase 2) ────────
+    //
+    // "SimTrip" stands in for Booking.com/Expedia. It is mapped to all three room types
+    // and the BAR plan, and switched ON, so a fresh dev database can push availability
+    // and take an OTA booking without any setup. The external codes are the channel's
+    // own vocabulary — deliberately NOT equal to ours, to prove the mapping is real.
+    const simChannelId = uuidv7();
+
+    await db
+      .insert(channels)
+      .values({
+        id: simChannelId,
+        propertyId: SEED.alphaId,
+        code: 'SIM_OTA',
+        name: 'SimTrip',
+        enabled: true,
+      })
+      .onConflictDoNothing({ target: [channels.propertyId, channels.code] });
+
+    const [simChannel] = await db
+      .select()
+      .from(channels)
+      .where(and(eq(channels.propertyId, SEED.alphaId), eq(channels.code, 'SIM_OTA')));
+
+    await db
+      .insert(channelRoomTypeMappings)
+      .values(
+        (['STD', 'DLX', 'SUITE'] as const).map((code) => ({
+          id: uuidv7(),
+          propertyId: SEED.alphaId,
+          channelId: simChannel!.id,
+          roomTypeId: typeIds.get(code)!,
+          externalRoomCode: `SIM-${code}`,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [channelRoomTypeMappings.channelId, channelRoomTypeMappings.roomTypeId],
+      });
+
+    await db
+      .insert(channelRatePlanMappings)
+      .values({
+        id: uuidv7(),
+        propertyId: SEED.alphaId,
+        channelId: simChannel!.id,
+        ratePlanId: planId,
+        externalRateCode: 'SIM-BAR',
+      })
+      .onConflictDoNothing({
+        target: [channelRatePlanMappings.channelId, channelRatePlanMappings.ratePlanId],
+      });
+
     console.warn('Seed complete.');
     console.warn('  Inventory  : Hotel Alpha — 3 room types, 30 rooms, BAR plan, 90 days priced');
     console.warn('               Hotel Beta  — deliberately empty (tenancy canary)');
     console.warn('  POS        : Saffron (restaurant), 6 menu items');
+    console.warn('  Channels   : SimTrip (SIM_OTA) — 3 room types + BAR mapped, enabled');
     console.warn(`  Properties : Hotel Alpha (${SEED.alphaId})`);
     console.warn(`               Hotel Beta  (${SEED.betaId})`);
     console.warn(`  Password   : ${SEED.password}`);

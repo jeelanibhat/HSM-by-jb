@@ -56,6 +56,74 @@ input CancelReservationGqlInput {
   reservationId: ID!
 }
 
+type ChannelBookingGql {
+  channelId: ID!
+  createdAt: DateTime!
+  externalRef: String!
+  id: ID!
+  reason: String
+  reservationId: ID
+  status: ChannelDeliveryStatus!
+}
+
+type ChannelBookingResultGql {
+  bookingId: ID!
+  confirmationNo: String
+  externalRef: String!
+  outcome: ChannelDeliveryStatus!
+  reason: String
+  reservationId: ID
+}
+
+"""
+RECEIVED | CONFIRMED | REJECTED | DUPLICATE — the fate of an inbound booking
+"""
+enum ChannelDeliveryStatus {
+  CONFIRMED
+  DUPLICATE
+  RECEIVED
+  REJECTED
+}
+
+type ChannelGql {
+  code: String!
+  enabled: Boolean!
+  id: ID!
+  name: String!
+  ratePlanMappings: [ChannelRatePlanMappingGql!]!
+  roomTypeMappings: [ChannelRoomTypeMappingGql!]!
+}
+
+"""PENDING | SENT | FAILED — the state of one availability push"""
+enum ChannelOutboundStatus {
+  FAILED
+  PENDING
+  SENT
+}
+
+type ChannelRatePlanMappingGql {
+  externalRateCode: String!
+  ratePlanId: ID!
+}
+
+type ChannelRoomTypeMappingGql {
+  externalRoomCode: String!
+  roomTypeId: ID!
+}
+
+type ChannelSyncRowGql {
+  attempts: Int!
+  channelId: ID!
+  createdAt: DateTime!
+  fromDate: String!
+  id: ID!
+  lastError: String
+  roomTypeId: ID!
+  sentAt: DateTime
+  status: ChannelOutboundStatus!
+  toDate: String!
+}
+
 input ChargeOrderToRoomGqlInput {
   orderId: ID!
   roomId: ID!
@@ -81,6 +149,11 @@ type CheckInPayloadGql {
 input CompleteHousekeepingTaskGqlInput {
   notes: String
   taskId: ID!
+}
+
+input ConnectChannelGqlInput {
+  code: String!
+  name: String!
 }
 
 input CreateGuestGqlInput {
@@ -325,6 +398,18 @@ input LoginInput {
   password: String!
 }
 
+input MapChannelRatePlanGqlInput {
+  channelId: ID!
+  externalRateCode: String!
+  ratePlanId: ID!
+}
+
+input MapChannelRoomTypeGqlInput {
+  channelId: ID!
+  externalRoomCode: String!
+  roomTypeId: ID!
+}
+
 type MenuItemGql {
   category: String
   code: String!
@@ -349,6 +434,7 @@ type Mutation {
   checkIn(reservationId: ID!): CheckInPayloadGql!
   checkOut(reservationId: ID!): CheckInPayloadGql!
   completeHousekeepingTask(input: CompleteHousekeepingTaskGqlInput!): HousekeepingTaskGql!
+  connectChannel(input: ConnectChannelGqlInput!): ChannelGql!
   createGuest(input: CreateGuestGqlInput!): GuestGql!
   createHousekeepingTask(input: CreateHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   createRatePlan(input: CreateRatePlanGqlInput!): RatePlanGql!
@@ -360,16 +446,21 @@ type Mutation {
   issueInvoice(folioId: ID!): InvoiceGql!
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
+  mapChannelRatePlan(input: MapChannelRatePlanGqlInput!): ChannelGql!
+  mapChannelRoomType(input: MapChannelRoomTypeGqlInput!): ChannelGql!
   modifyReservation(input: ModifyReservationGqlInput!): ReservationGql!
   openOrder(input: OpenOrderGqlInput!): PosOrderGql!
   postCharge(input: PostChargeGqlInput!): FolioBalanceGql!
   postPayment(input: PostPaymentGqlInput!): FolioBalanceGql!
   refreshToken: AuthPayload!
   removeOrderLine(input: RemoveOrderLineGqlInput!): PosOrderGql!
+  resyncChannel(input: ResyncChannelGqlInput!): ResyncResultGql!
   revealIdNumber(input: RevealIdGqlInput!): String!
   runNightAudit: NightAuditPayloadGql!
+  setChannelEnabled(input: SetChannelEnabledGqlInput!): ChannelGql!
   setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
   setRatePrices(input: SetRatePricesGqlInput!): Float!
+  simulateChannelBooking(input: SimulateChannelBookingGqlInput!): ChannelBookingResultGql!
   startHousekeepingTask(input: StartHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
   voidFolioLine(input: VoidLineGqlInput!): FolioBalanceGql!
@@ -468,6 +559,9 @@ type PropertyType {
 type Query {
   arrivals(date: String!): [ReservationGql!]!
   availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
+  channelBookings(channelId: ID): [ChannelBookingGql!]!
+  channelSyncLog(channelId: ID): [ChannelSyncRowGql!]!
+  channels: [ChannelGql!]!
   chargeableRooms: [ChargeableRoomGql!]!
   currentProperty: PropertyType
   dailyRevenueReport(date: String!): DailyRevenueReportGql!
@@ -496,6 +590,7 @@ type Query {
   roomTypes: [RoomTypeGql!]!
   rooms: [RoomGql!]!
   searchGuests(query: String!): [GuestGql!]!
+  simulatedAri(channelId: ID!): [SimulatedAriGql!]!
   tapeChart(from: String!, to: String!): TapeChartGql!
 }
 
@@ -586,6 +681,14 @@ enum ReservationStatus {
   NO_SHOW
 }
 
+input ResyncChannelGqlInput {
+  channelId: ID!
+}
+
+type ResyncResultGql {
+  queued: Int!
+}
+
 input RevealIdGqlInput {
   guestId: ID!
   reason: String!
@@ -643,12 +746,39 @@ type RoomTypeGql {
   name: String!
 }
 
+input SetChannelEnabledGqlInput {
+  channelId: ID!
+  enabled: Boolean!
+}
+
 input SetRatePricesGqlInput {
   from: String!
   priceMinor: Int!
   ratePlanId: ID!
   roomTypeId: ID!
   to: String!
+}
+
+input SimulateChannelBookingGqlInput {
+  adults: Int!
+  arrivalDate: String!
+  channelId: ID!
+  children: Int!
+  departureDate: String!
+  email: String
+  externalRateCode: String!
+  externalRef: String!
+  externalRoomCode: String!
+  firstName: String!
+  lastName: String!
+}
+
+type SimulatedAriGql {
+  available: Int!
+  date: String!
+  externalRateCode: String
+  externalRoomCode: String!
+  priceMinor: Int
 }
 
 input StartHousekeepingTaskGqlInput {

@@ -56,9 +56,12 @@ test('a waiter sends a meal to a room, and it lands on the bill with GST', async
   await waiter.getByRole('button', { name: 'New order' }).click();
   await expect(alertText(waiter)).toContainText(/Order R-\d+ opened/);
 
-  await waiter.getByRole('button', { name: /Dal Makhani/ }).click();
-  await waiter.getByRole('button', { name: /Butter Naan/ }).click();
-  await waiter.getByRole('button', { name: /Butter Naan/ }).click();
+  // Anchor on the start of the name: once a line is on the order it grows a "Remove
+  // <item>" button, so a bare /Butter Naan/ matches the menu tile AND the remove ✕.
+  // The menu tile's name begins with the dish; the remove button begins with "Remove".
+  await waiter.getByRole('button', { name: /^Dal Makhani/ }).click();
+  await waiter.getByRole('button', { name: /^Butter Naan/ }).click();
+  await waiter.getByRole('button', { name: /^Butter Naan/ }).click();
 
   // ₹450 + 2 × ₹90 = ₹630. The CLIENT did not compute that — it never saw a price it
   // could have got wrong.

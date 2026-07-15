@@ -5,4 +5,5 @@ export * from './reservation-state-machine.js';
 export * from './room-status-machine.js';
 export * from './housekeeping-task-machine.js';
 export * from './pos-order-machine.js';
+export * from './channel-sync-machine.js';
 export * from './validators.js';

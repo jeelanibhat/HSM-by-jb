@@ -107,3 +107,35 @@ export type PosOrderStatus = (typeof POS_ORDER_STATUSES)[number];
 
 export const NIGHT_AUDIT_STATUSES = ['RUNNING', 'COMPLETED', 'FAILED'] as const;
 export type NightAuditStatus = (typeof NIGHT_AUDIT_STATUSES)[number];
+
+/**
+ * One outbound availability/rate push to a channel.
+ *
+ *   PENDING — queued after a booking moved inventory; not yet sent
+ *   SENT    — the channel acknowledged it. Terminal for THIS push.
+ *   FAILED  — the channel rejected it or was unreachable; will be retried
+ *
+ * A push is a snapshot, never a delta: we always send the CURRENT availability for a
+ * room-type/date range, so a lost or reordered push is corrected by the next one
+ * rather than compounding. FAILED → PENDING is the retry; there is no edge out of
+ * SENT because the row records one attempt's outcome, and the next change makes a new
+ * row.
+ */
+export const CHANNEL_OUTBOUND_STATUSES = ['PENDING', 'SENT', 'FAILED'] as const;
+export type ChannelOutboundStatus = (typeof CHANNEL_OUTBOUND_STATUSES)[number];
+
+/**
+ * The fate of one inbound booking an OTA handed us.
+ *
+ *   RECEIVED  — accepted off the wire, not yet turned into a reservation
+ *   CONFIRMED — a reservation exists for it. Terminal.
+ *   REJECTED  — we could not honour it: the room was gone (oversell) or the channel
+ *               named a room/rate code we have no mapping for. Terminal.
+ *   DUPLICATE — the OTA delivered a booking reference we have already seen. Terminal;
+ *               the reservation from the first delivery stands.
+ *
+ * All three end states are terminal on purpose: an OTA booking's outcome is a fact
+ * about one delivery, and a redelivery is a DUPLICATE, not a state change.
+ */
+export const CHANNEL_DELIVERY_STATUSES = ['RECEIVED', 'CONFIRMED', 'REJECTED', 'DUPLICATE'] as const;
+export type ChannelDeliveryStatus = (typeof CHANNEL_DELIVERY_STATUSES)[number];

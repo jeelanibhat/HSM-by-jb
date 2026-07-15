@@ -59,6 +59,14 @@ const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   OUTBOX_POLL_MS: z.coerce.number().int().positive().default(1_000),
+
+  // Channel sync relay (Phase 2 — channel manager). Same rationale as the outbox:
+  // disabled in tests, which drain it explicitly so a push is asserted, not raced.
+  CHANNEL_RELAY_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  CHANNEL_POLL_MS: z.coerce.number().int().positive().default(2_000),
 });
 
 export type Env = z.infer<typeof envSchema>;

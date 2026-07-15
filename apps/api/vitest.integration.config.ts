@@ -22,6 +22,10 @@ export default defineConfig({
        */
       OUTBOX_RELAY_ENABLED: 'false',
 
+      // Same reason for the channel sync relay: tests call drainOnce() themselves, so a
+      // push is asserted rather than raced against a background poll.
+      CHANNEL_RELAY_ENABLED: 'false',
+
       // A request log line per assertion buries the actual failure.
       LOG_LEVEL: 'silent',
     },

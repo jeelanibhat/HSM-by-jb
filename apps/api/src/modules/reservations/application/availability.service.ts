@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import type { BusinessDate } from '@hotelos/domain';
+import type { TenantTx } from '../../../db/tenant-transaction';
 import type { UnitOfWork } from '../../../shared';
 
 export class NoAvailabilityError extends Error {
@@ -144,34 +145,53 @@ export class AvailabilityService {
     to: BusinessDate,
     roomTypeId?: string,
   ): Promise<AvailabilityRow[]> {
+    return this.queryWith(u.tx, u.propertyId, from, to, roomTypeId);
+  }
+
+  /**
+   * The same grid, from a bare tenant transaction rather than a full unit of work.
+   *
+   * The channel sync relay needs this: it computes availability outside any request, in
+   * a property-scoped transaction of its own, with no actor and nothing to audit. It
+   * must read the SAME numbers the booking screen does — a channel that is told a
+   * different availability than the front desk sees is the bug this module exists to
+   * prevent — so both go through this one query.
+   */
+  async queryWith(
+    tx: TenantTx,
+    propertyId: string,
+    from: BusinessDate,
+    to: BusinessDate,
+    roomTypeId?: string,
+  ): Promise<AvailabilityRow[]> {
     /**
      * Computed live from inventory + the sold counter rather than read straight
      * out of the counter table, because a night nobody has booked yet has NO row —
      * and "no row" means "fully available", not "unavailable". Deriving it means a
      * missing row can never read as zero availability.
      */
-    const rows = (await u.tx.execute(sql`
+    const rows = (await tx.execute(sql`
       WITH nights AS (
         SELECT d::date AS date FROM generate_series(${from}::date, ${to}::date, interval '1 day') d
       ),
       types AS (
         SELECT id, code FROM inventory.room_types
-        WHERE property_id = ${u.propertyId}::uuid
+        WHERE property_id = ${propertyId}::uuid
           AND (${roomTypeId ?? null}::uuid IS NULL OR id = ${roomTypeId ?? null}::uuid)
       )
       SELECT
         t.id::text AS "roomTypeId",
         n.date::text AS date,
         (SELECT count(*)::int FROM inventory.rooms r
-          WHERE r.property_id = ${u.propertyId}::uuid AND r.room_type_id = t.id) AS total,
+          WHERE r.property_id = ${propertyId}::uuid AND r.room_type_id = t.id) AS total,
         COALESCE(a.sold, 0)::int AS sold,
         (SELECT count(*)::int FROM inventory.rooms r
-          WHERE r.property_id = ${u.propertyId}::uuid AND r.room_type_id = t.id
+          WHERE r.property_id = ${propertyId}::uuid AND r.room_type_id = t.id
             AND r.status IN ('OOO','OOS')) AS blocked
       FROM types t
       CROSS JOIN nights n
       LEFT JOIN reservations.room_type_availability a
-        ON a.property_id = ${u.propertyId}::uuid
+        ON a.property_id = ${propertyId}::uuid
        AND a.room_type_id = t.id
        AND a.date = n.date
       ORDER BY t.code, n.date

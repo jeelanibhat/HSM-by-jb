@@ -155,6 +155,20 @@
       "when": 1784057753691,
       "tag": "0021_pos_rls_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784138719759,
+      "tag": "0022_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784138719760,
+      "tag": "0023_channels_rls_grants",
+      "breakpoints": true
     }
   ]
 }

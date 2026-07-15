@@ -281,6 +281,77 @@ export type RemoveOrderLineInput = z.infer<typeof removeOrderLineSchema>;
 export type ChargeOrderToRoomInput = z.infer<typeof chargeOrderToRoomSchema>;
 export type VoidOrderInput = z.infer<typeof voidOrderSchema>;
 
+// ── Channel manager (Phase 2) ─────────────────────────────────────────────────
+
+/** A short, stable code for an external system — "SIM_OTA", "BOOKINGCOM". */
+const channelCodeSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(24)
+  .regex(/^[A-Z0-9_]+$/, 'Use upper-case letters, digits and underscores');
+
+/** The room/rate identifiers a channel uses — free-form on their side. */
+const externalCodeSchema = z.string().trim().min(1).max(64);
+
+export const connectChannelSchema = z.object({
+  code: channelCodeSchema,
+  name: z.string().trim().min(1).max(100),
+});
+
+export const setChannelEnabledSchema = z.object({
+  channelId: uuidSchema,
+  enabled: z.boolean(),
+});
+
+export const mapChannelRoomTypeSchema = z.object({
+  channelId: uuidSchema,
+  roomTypeId: uuidSchema,
+  externalRoomCode: externalCodeSchema,
+});
+
+export const mapChannelRatePlanSchema = z.object({
+  channelId: uuidSchema,
+  ratePlanId: uuidSchema,
+  externalRateCode: externalCodeSchema,
+});
+
+export const resyncChannelSchema = z.object({
+  channelId: uuidSchema,
+});
+
+/**
+ * A booking arriving FROM a channel.
+ *
+ * The channel speaks in its OWN codes — its room code, its rate code — never our ids.
+ * Mapping them to our room type and rate plan is the ingestion service's job; if it
+ * cannot, the booking is rejected rather than guessed. `externalRef` is the OTA's own
+ * reference for the booking, and it is what makes a redelivery a no-op.
+ */
+export const simulateChannelBookingSchema = z
+  .object({
+    channelId: uuidSchema,
+    externalRef: z.string().trim().min(1).max(64),
+    externalRoomCode: externalCodeSchema,
+    externalRateCode: externalCodeSchema,
+    guest: guestSchema,
+    arrivalDate: businessDateSchema,
+    departureDate: businessDateSchema,
+    adults: z.number().int().min(1).max(10),
+    children: z.number().int().min(0).max(10),
+  })
+  .refine((v) => v.departureDate > v.arrivalDate, {
+    message: 'Departure must be after arrival',
+    path: ['departureDate'],
+  });
+
+export type ConnectChannelInput = z.infer<typeof connectChannelSchema>;
+export type SetChannelEnabledInput = z.infer<typeof setChannelEnabledSchema>;
+export type MapChannelRoomTypeInput = z.infer<typeof mapChannelRoomTypeSchema>;
+export type MapChannelRatePlanInput = z.infer<typeof mapChannelRatePlanSchema>;
+export type ResyncChannelInput = z.infer<typeof resyncChannelSchema>;
+export type SimulateChannelBookingInput = z.infer<typeof simulateChannelBookingSchema>;
+
 export const folioLineTypeSchema = z.enum(FOLIO_LINE_TYPES);
 export const roleSchema = z.enum(ROLES);
 

@@ -29,6 +29,9 @@ export const EVENT_TYPES = [
 
   // Phase 2 — POS. The moment a meal becomes money the guest owes.
   'pos.order_charged',
+
+  // Phase 2 — channel manager. An OTA's booking became one of ours.
+  'channel.booking_received',
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

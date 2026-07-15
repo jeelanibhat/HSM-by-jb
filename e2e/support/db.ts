@@ -44,6 +44,8 @@ export async function resetHotel(sql: postgres.Sql): Promise<void> {
   await sql.unsafe(`
     DELETE FROM pos.order_lines;
     DELETE FROM pos.orders;
+    DELETE FROM channel.channel_outbound;
+    DELETE FROM channel.channel_bookings;
     DELETE FROM housekeeping.tasks;
     DELETE FROM reporting.daily_stats;
     DELETE FROM shared.night_audit_runs;
