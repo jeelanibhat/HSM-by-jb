@@ -168,6 +168,27 @@ export class ChannelConfigService {
         .limit(1);
       if (!roomType) throw new NotFoundException('Room type not found');
 
+      // A code can belong to only one room type per channel (the second unique
+      // constraint). Catch that here with a sentence a human can act on — otherwise the
+      // upsert below, whose conflict target is (channel, roomType), sails past it and the
+      // OTHER constraint raises a raw 23505 that surfaces as a 500.
+      const [clash] = await u.tx
+        .select({ roomTypeId: channelRoomTypeMappings.roomTypeId })
+        .from(channelRoomTypeMappings)
+        .where(
+          and(
+            eq(channelRoomTypeMappings.channelId, channel.id),
+            eq(channelRoomTypeMappings.externalRoomCode, input.externalRoomCode),
+          ),
+        )
+        .limit(1);
+
+      if (clash && clash.roomTypeId !== input.roomTypeId) {
+        throw new BadRequestException(
+          `Code ${input.externalRoomCode} is already mapped to another room type on this channel.`,
+        );
+      }
+
       // Re-mapping a room type replaces the code; a room type maps to exactly one code
       // per channel (the unique constraint), so upsert on that key.
       await u.tx

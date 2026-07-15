@@ -300,7 +300,16 @@ export class ReservationsService {
         aggregateType: 'reservation',
         aggregateId: reservationId,
         eventType: 'reservation.modified',
-        payload: { confirmationNo: reservation.confirmationNo, arrival, departure },
+        payload: {
+          confirmationNo: reservation.confirmationNo,
+          arrival,
+          departure,
+          // The dates BEFORE the move. Consumers that mirror availability (the channel
+          // manager) must refresh the vacated nights too, not only the new ones — a room
+          // freed by a date change is a room the OTA should be able to sell again.
+          previousArrival: reservation.arrivalDate,
+          previousDeparture: reservation.departureDate,
+        },
       });
 
       return updated!;

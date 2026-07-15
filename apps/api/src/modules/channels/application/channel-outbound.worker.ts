@@ -39,7 +39,7 @@ export class ChannelOutboundWorker implements OnModuleInit {
     if (!event.propertyId) return;
 
     try {
-      await this.enqueueForReservation(event.propertyId, event.aggregateId);
+      await this.enqueueForReservation(event.propertyId, event.aggregateId, event.payload);
     } catch (err) {
       // Never rethrow: a failure to enqueue must not wedge the outbox. We would rather
       // miss one push (the next booking re-triggers it) than stall every event.
@@ -61,12 +61,23 @@ export class ChannelOutboundWorker implements OnModuleInit {
    * range, so a cancellation and a booking enqueue the same shape and the snapshot sorts
    * out which way it moved.
    */
-  private async enqueueForReservation(propertyId: string, reservationId: string): Promise<void> {
+  private async enqueueForReservation(
+    propertyId: string,
+    reservationId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     await this.tx.run(propertyId, async (tx) => {
       const spans = await this.roomTypeSpans(tx, reservationId);
       if (spans.length === 0) return;
 
-      const roomTypeIds = spans.map((s) => s.roomTypeId);
+      // A date change frees the OLD nights and books the new ones. The current rooms only
+      // describe the new range, so widen each span to also cover where the reservation
+      // USED to be (carried on reservation.modified) — otherwise the vacated nights stay
+      // closed on the channel forever. The relay recomputes current availability across
+      // the widened range, so the freed nights come back and the new ones close in one push.
+      const widened = this.widenToPrevious(spans, payload);
+
+      const roomTypeIds = widened.map((s) => s.roomTypeId);
 
       // Enabled channels that actually map one of these room types. A disabled channel,
       // or one with no mapping for the type, has nothing to be told.
@@ -86,7 +97,7 @@ export class ChannelOutboundWorker implements OnModuleInit {
 
       if (targets.length === 0) return;
 
-      const spanByType = new Map(spans.map((s) => [s.roomTypeId, s]));
+      const spanByType = new Map(widened.map((s) => [s.roomTypeId, s]));
 
       const rows = targets.map((t) => {
         const span = spanByType.get(t.roomTypeId)!;
@@ -103,6 +114,30 @@ export class ChannelOutboundWorker implements OnModuleInit {
 
       await tx.insert(channelOutbound).values(rows);
     });
+  }
+
+  /**
+   * Stretch each span to also cover the reservation's PREVIOUS nights, if the event
+   * carried them (only reservation.modified does). ISO dates compare lexicographically,
+   * so string min/max is correct here.
+   */
+  private widenToPrevious(
+    spans: Array<{ roomTypeId: string; fromDate: string; toDate: string }>,
+    payload: Record<string, unknown>,
+  ): Array<{ roomTypeId: string; fromDate: string; toDate: string }> {
+    const prevArrival = typeof payload['previousArrival'] === 'string' ? payload['previousArrival'] : null;
+    const prevDeparture =
+      typeof payload['previousDeparture'] === 'string' ? payload['previousDeparture'] : null;
+
+    if (!prevArrival || !prevDeparture) return spans;
+
+    const prevLastNight = addDays(businessDate(prevDeparture), -1);
+
+    return spans.map((s) => ({
+      roomTypeId: s.roomTypeId,
+      fromDate: prevArrival < s.fromDate ? prevArrival : s.fromDate,
+      toDate: prevLastNight > s.toDate ? prevLastNight : s.toDate,
+    }));
   }
 
   /** Per room type on the reservation: the widest occupied-night span across its rows. */

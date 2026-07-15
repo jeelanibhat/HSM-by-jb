@@ -63,6 +63,7 @@ const SIMULATE = `mutation($i: SimulateChannelBookingGqlInput!) {
 }`;
 const RESYNC = `mutation($i: ResyncChannelGqlInput!) { resyncChannel(input: $i) { queued } }`;
 const CHANNELS = `{ channels { id code name enabled roomTypeMappings { roomTypeId externalRoomCode } } }`;
+const MAP_ROOM = `mutation($i: MapChannelRoomTypeGqlInput!) { mapChannelRoomType(input: $i) { id } }`;
 
 /** Make a direct booking for a room type over [arrival, departure). Returns its id. */
 async function directBooking(typeId: string, last: string, arrival: string, departure: string) {
@@ -85,10 +86,24 @@ async function directBooking(typeId: string, last: string, arrival: string, depa
   return res.body.data.createReservation.id as string;
 }
 
-/** Push whatever is queued all the way to the channel: outbox → worker → sync relay. */
-async function flush() {
-  await outbox.drain();
-  return sync.drainOnce();
+/**
+ * Push whatever is queued all the way to the channel: outbox → worker → sync relay.
+ *
+ * Drained to a fixed point rather than once. The outbox drain enqueues the pushes and the
+ * sync drain delivers them, but under the shared-DB suite a single pass can leave a beat
+ * between "enqueued" and "visible to the drainer"; looping until the relay reports no work
+ * removes that timing seam (which is exactly what the production pollers do — they just
+ * keep draining). Returns the total pushes delivered.
+ */
+async function flush(): Promise<number> {
+  let total = 0;
+  for (let i = 0; i < 5; i++) {
+    await outbox.drain();
+    const sent = await sync.drainOnce();
+    total += sent;
+    if (sent === 0) break;
+  }
+  return total;
 }
 
 /**
@@ -199,6 +214,31 @@ describe('pushing availability out', () => {
 
     // Back to where we started — the snapshot reflects the cancellation, not a stale hold.
     expect(pushedAvailable('SIM-STD', '2026-07-20')).toBe(before);
+  });
+
+  it('a date change frees the vacated nights on the channel, not just closes the new ones', async () => {
+    const before = await availableFor('STD', '2026-07-20');
+
+    const id = await directBooking(stdTypeId, 'Mover', '2026-07-20', '2026-07-22');
+    await flush();
+    // The original nights are held.
+    expect(pushedAvailable('SIM-STD', '2026-07-20')).toBe(before - 1);
+    expect(pushedAvailable('SIM-STD', '2026-07-21')).toBe(before - 1);
+
+    // Move the stay a week later.
+    await as(
+      'frontdesk',
+      `mutation($i: ModifyReservationGqlInput!) { modifyReservation(input: $i) { id } }`,
+      { i: { reservationId: id, arrivalDate: '2026-07-27', departureDate: '2026-07-29' } },
+    );
+    await flush();
+
+    // The vacated nights are open again — the bug was that they stayed closed forever —
+    // and the new nights are now held.
+    expect(pushedAvailable('SIM-STD', '2026-07-20')).toBe(before);
+    expect(pushedAvailable('SIM-STD', '2026-07-21')).toBe(before);
+    expect(pushedAvailable('SIM-STD', '2026-07-27')).toBe(before - 1);
+    expect(pushedAvailable('SIM-STD', '2026-07-28')).toBe(before - 1);
   });
 
   it('a manual resync pushes every mapped room type, with the nightly rate', async () => {
@@ -346,6 +386,17 @@ describe('who may work the channels', () => {
   it('refuses a waiter', async () => {
     const res = await as('pos', CHANNELS);
     expect(res.body.data).toBeFalsy();
+  });
+
+  it('refuses to map a channel code that already belongs to another room type', async () => {
+    // The seed maps STD → SIM-STD. Handing SIM-STD to DLX must be refused with a
+    // sentence, not a raw constraint 500.
+    const res = await as('manager', MAP_ROOM, {
+      i: { channelId, roomTypeId: dlxTypeId, externalRoomCode: 'SIM-STD' },
+    });
+
+    expect(res.body.data).toBeFalsy();
+    expect(JSON.stringify(res.body.errors)).toMatch(/already mapped/i);
   });
 
   it('never shows one property the channels of another', async () => {

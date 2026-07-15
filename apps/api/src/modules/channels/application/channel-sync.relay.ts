@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { businessDate, nextPushDelayMs } from '@hotelos/domain';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Env } from '../../../config/env';
 import { TenantTransaction, type TenantTx } from '../../../db/tenant-transaction';
 import { AvailabilityService } from '../../reservations';
@@ -230,6 +230,8 @@ export class ChannelSyncRelay implements OnApplicationBootstrap, OnApplicationSh
 
     // A rate to send alongside availability is a bonus, not a requirement: a channel may
     // manage its own rates. If a rate plan is mapped, attach the nightly price.
+    // The oldest mapped plan, deterministically — a channel with two mapped plans must
+    // not have its advertised price flip between pushes on Postgres row order.
     const [rateMap] = await tx
       .select({
         externalRateCode: channelRatePlanMappings.externalRateCode,
@@ -237,10 +239,12 @@ export class ChannelSyncRelay implements OnApplicationBootstrap, OnApplicationSh
       })
       .from(channelRatePlanMappings)
       .where(eq(channelRatePlanMappings.channelId, row.channelId))
+      .orderBy(asc(channelRatePlanMappings.createdAt))
       .limit(1);
 
     const priceByDate = new Map<string, number>();
     if (rateMap) {
+      // Only the nights being pushed — not every priced day for the plan.
       const prices = await tx
         .select({ date: ratePrices.date, priceMinor: ratePrices.priceMinor })
         .from(ratePrices)
@@ -248,6 +252,8 @@ export class ChannelSyncRelay implements OnApplicationBootstrap, OnApplicationSh
           and(
             eq(ratePrices.ratePlanId, rateMap.ratePlanId),
             eq(ratePrices.roomTypeId, row.roomTypeId),
+            gte(ratePrices.date, row.fromDate),
+            lte(ratePrices.date, row.toDate),
           ),
         );
       for (const p of prices) priceByDate.set(p.date, p.priceMinor);
