@@ -26,6 +26,9 @@ export const EVENT_TYPES = [
   'housekeeping.task_inspected',
   /** The supervisor sent the room back. The room is dirty again. */
   'housekeeping.inspection_failed',
+
+  // Phase 2 — POS. The moment a meal becomes money the guest owes.
+  'pos.order_charged',
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

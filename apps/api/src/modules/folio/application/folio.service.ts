@@ -13,6 +13,7 @@ import { uuidv7 } from 'uuidv7';
 import { TenantTransaction } from '../../../db/tenant-transaction';
 import { TransactionalUnitOfWork, type ActorContext, type UnitOfWork } from '../../../shared';
 import { properties, taxes } from '../../property/infra/schema';
+import { reservationRooms, reservations } from '../../reservations/infra/schema';
 import { folioLines, folios, invoices } from '../infra/schema';
 
 /** Charge codes that attract tax. Payments obviously do not. */
@@ -102,38 +103,89 @@ export class FolioService {
       quantity?: number;
     },
   ) {
-    return this.uow.execute(actor, async (u) => {
-      const folio = await this.loadOpenFolio(u, input.folioId);
+    return this.uow.execute(actor, (u) => this.postChargeWithin(u, actor, input));
+  }
 
-      const qty = input.quantity ?? 1;
-      const gross = money(input.amountMinor * qty, folio.currency);
+  /**
+   * The same posting, INSIDE a transaction the caller already owns.
+   *
+   * POS needs this: marking a restaurant order "charged" and putting its lines on the
+   * guest's bill must be one commit. Two transactions can fail between them, and both
+   * halves of that failure are bad — a guest billed for a meal on an order that says
+   * it was never charged, or a meal the restaurant thinks it billed and the guest
+   * never sees.
+   *
+   * Same code as postCharge, not a copy of it: a second implementation of tax posting
+   * would drift, and the first thing to drift would be the tax.
+   */
+  async postChargeWithin(
+    u: UnitOfWork,
+    actor: ActorContext,
+    input: {
+      folioId: string;
+      code: string;
+      description: string;
+      amountMinor: number;
+      quantity?: number;
+    },
+  ): Promise<FolioBalance> {
+    const folio = await this.loadOpenFolio(u, input.folioId);
 
-      const businessDate = await this.currentBusinessDate(u);
-      const lines = await this.buildChargeLines(u, folio, input.code, input.description, gross, businessDate, actor.userId);
+    const qty = input.quantity ?? 1;
+    const gross = money(input.amountMinor * qty, folio.currency);
 
-      await u.tx.insert(folioLines).values(lines);
+    const businessDate = await this.currentBusinessDate(u);
+    const lines = await this.buildChargeLines(u, folio, input.code, input.description, gross, businessDate, actor.userId);
 
-      const total = sum(
-        lines.map((l) => money(l.amountMinor, folio.currency)),
-        folio.currency,
-      );
+    await u.tx.insert(folioLines).values(lines);
 
-      u.audit({
-        action: 'folio.line_posted',
-        entityType: 'folio',
-        entityId: folio.id,
-        after: { code: input.code, amountMinor: total.minor, businessDate },
-      });
+    const total = sum(
+      lines.map((l) => money(l.amountMinor, folio.currency)),
+      folio.currency,
+    );
 
-      u.emit({
-        aggregateType: 'folio',
-        aggregateId: folio.id,
-        eventType: 'folio.line_posted',
-        payload: { folioId: folio.id, code: input.code, amountMinor: total.minor },
-      });
-
-      return this.balanceOf(u, folio.id, folio.currency);
+    u.audit({
+      action: 'folio.line_posted',
+      entityType: 'folio',
+      entityId: folio.id,
+      after: { code: input.code, amountMinor: total.minor, businessDate },
     });
+
+    u.emit({
+      aggregateType: 'folio',
+      aggregateId: folio.id,
+      eventType: 'folio.line_posted',
+      payload: { folioId: folio.id, code: input.code, amountMinor: total.minor },
+    });
+
+    return this.balanceOf(u, folio.id, folio.currency);
+  }
+
+  /**
+   * The OPEN folio of the guest currently in this room — or nothing.
+   *
+   * This is the question the restaurant actually asks: "room 204 says put it on their
+   * bill; whose bill is that?" It must be answered from the reservation that is
+   * CHECKED_IN right now, never from the room number alone. A room that is vacant, or
+   * that a different guest checked into this morning, has no bill to charge — and
+   * charging it anyway is how a departed guest gets billed for someone else's dinner.
+   */
+  async openFolioForRoom(u: UnitOfWork, roomId: string) {
+    const [row] = await u.tx
+      .select({ folioId: folios.id, currency: folios.currency, guestId: reservations.guestId })
+      .from(folios)
+      .innerJoin(reservations, eq(reservations.id, folios.reservationId))
+      .innerJoin(
+        reservationRooms,
+        and(
+          eq(reservationRooms.reservationId, reservations.id),
+          eq(reservationRooms.roomId, roomId),
+        ),
+      )
+      .where(and(eq(reservations.status, 'CHECKED_IN'), eq(folios.status, 'OPEN')))
+      .limit(1);
+
+    return row ?? null;
   }
 
   /**

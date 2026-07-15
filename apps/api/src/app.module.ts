@@ -22,6 +22,7 @@ import { GuestsModule } from './modules/guests';
 import { FolioModule } from './modules/folio';
 import { NightAuditModule } from './modules/night-audit';
 import { HousekeepingModule } from './modules/housekeeping';
+import { PosModule } from './modules/pos';
 import { ReportingModule } from './modules/reporting';
 
 @Module({
@@ -177,6 +178,7 @@ import { ReportingModule } from './modules/reporting';
     NightAuditModule,
     ReportingModule,
     HousekeepingModule,
+    PosModule,
   ],
   // The global auth/tenancy/RBAC guards are registered inside IdentityModule —
   // they need JwtService, which lives there. They still apply app-wide, so every

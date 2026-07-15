@@ -1,6 +1,6 @@
 import { db, resetHotel } from './db';
 
-export const ROLES = ['admin', 'manager', 'frontdesk', 'housekeeping', 'auditor'] as const;
+export const ROLES = ['admin', 'manager', 'frontdesk', 'housekeeping', 'pos', 'auditor'] as const;
 export type Role = (typeof ROLES)[number];
 
 /**

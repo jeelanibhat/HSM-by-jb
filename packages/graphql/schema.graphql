@@ -2,6 +2,13 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddOrderLineGqlInput {
+  menuItemId: ID!
+  notes: String
+  orderId: ID!
+  quantity: Int!
+}
+
 input AnonymiseGuestGqlInput {
   guestId: ID!
   reason: String!
@@ -47,6 +54,23 @@ input BlacklistGuestGqlInput {
 input CancelReservationGqlInput {
   reason: String!
   reservationId: ID!
+}
+
+input ChargeOrderToRoomGqlInput {
+  orderId: ID!
+  roomId: ID!
+}
+
+type ChargeResultGql {
+  chargedMinor: Int!
+  order: PosOrderGql!
+  roomNumber: String!
+}
+
+type ChargeableRoomGql {
+  guestName: String!
+  roomId: ID!
+  roomNumber: String!
 }
 
 type CheckInPayloadGql {
@@ -301,6 +325,14 @@ input LoginInput {
   password: String!
 }
 
+type MenuItemGql {
+  category: String
+  code: String!
+  id: ID!
+  name: String!
+  priceMinor: Int!
+}
+
 input ModifyReservationGqlInput {
   arrivalDate: String!
   departureDate: String!
@@ -308,10 +340,12 @@ input ModifyReservationGqlInput {
 }
 
 type Mutation {
+  addOrderLine(input: AddOrderLineGqlInput!): PosOrderGql!
   anonymiseGuest(input: AnonymiseGuestGqlInput!): GuestGql!
   assignHousekeepingTask(input: AssignHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   assignRoom(input: AssignRoomGqlInput!): ReservationRoomGql!
   cancelReservation(input: CancelReservationGqlInput!): ReservationGql!
+  chargeOrderToRoom(input: ChargeOrderToRoomGqlInput!): ChargeResultGql!
   checkIn(reservationId: ID!): CheckInPayloadGql!
   checkOut(reservationId: ID!): CheckInPayloadGql!
   completeHousekeepingTask(input: CompleteHousekeepingTaskGqlInput!): HousekeepingTaskGql!
@@ -327,9 +361,11 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   logout: Boolean!
   modifyReservation(input: ModifyReservationGqlInput!): ReservationGql!
+  openOrder(input: OpenOrderGqlInput!): PosOrderGql!
   postCharge(input: PostChargeGqlInput!): FolioBalanceGql!
   postPayment(input: PostPaymentGqlInput!): FolioBalanceGql!
   refreshToken: AuthPayload!
+  removeOrderLine(input: RemoveOrderLineGqlInput!): PosOrderGql!
   revealIdNumber(input: RevealIdGqlInput!): String!
   runNightAudit: NightAuditPayloadGql!
   setGuestBlacklisted(input: BlacklistGuestGqlInput!): GuestGql!
@@ -337,6 +373,7 @@ type Mutation {
   startHousekeepingTask(input: StartHousekeepingTaskGqlInput!): HousekeepingTaskGql!
   updateRoomStatus(input: UpdateRoomStatusGqlInput!): RoomGql!
   voidFolioLine(input: VoidLineGqlInput!): FolioBalanceGql!
+  voidOrder(input: VoidOrderGqlInput!): PosOrderGql!
 }
 
 type NightAuditPayloadGql {
@@ -352,6 +389,47 @@ type NightAuditRunGql {
   completedAt: String
   id: ID!
   status: String!
+}
+
+input OpenOrderGqlInput {
+  outletId: ID!
+  tableRef: String
+}
+
+type OrderLineGql {
+  description: String!
+  id: ID!
+  menuItemId: ID!
+  notes: String
+  quantity: Int!
+  unitPriceMinor: Int!
+}
+
+type OutletGql {
+  chargeCode: String!
+  code: String!
+  id: ID!
+  name: String!
+}
+
+type PosOrderGql {
+  businessDate: String!
+  chargedAt: DateTime
+  id: ID!
+  lines: [OrderLineGql!]!
+  orderNo: String!
+  outletId: ID!
+  status: PosOrderStatus!
+  subtotalMinor: Int!
+  tableRef: String
+  voidReason: String
+}
+
+"""OPEN | CHARGED (on the guest’s bill, immutable) | VOID"""
+enum PosOrderStatus {
+  CHARGED
+  OPEN
+  VOID
 }
 
 input PostChargeGqlInput {
@@ -390,6 +468,7 @@ type PropertyType {
 type Query {
   arrivals(date: String!): [ReservationGql!]!
   availability(from: String!, roomTypeId: ID, to: String!): [AvailabilityGql!]!
+  chargeableRooms: [ChargeableRoomGql!]!
   currentProperty: PropertyType
   dailyRevenueReport(date: String!): DailyRevenueReportGql!
   departures(date: String!): [ReservationGql!]!
@@ -402,9 +481,13 @@ type Query {
   housekeepingAttendants: [HousekeepingAttendantGql!]!
   housekeepingBoard(date: String): [HousekeepingTaskGql!]!
   me: UserType!
+  menu(outletId: ID!): [MenuItemGql!]!
   myProperties: [PropertyType!]!
   nightAuditRuns: [NightAuditRunGql!]!
   occupancyReport(from: String!, to: String!): [DailyStatsGql!]!
+  openOrders(outletId: ID): [PosOrderGql!]!
+  outlets: [OutletGql!]!
+  posOrder(orderId: ID!): PosOrderGql!
   quote(arrivalDate: String!, departureDate: String!, ratePlanId: ID!, roomTypeId: ID!): QuoteGql!
   ratePlans: [RatePlanGql!]!
   ratePrices(from: String!, roomTypeId: ID!, to: String!): [RatePriceGql!]!
@@ -446,6 +529,11 @@ type RatePriceGql {
   priceMinor: Int!
   ratePlanId: ID!
   roomTypeId: ID!
+}
+
+input RemoveOrderLineGqlInput {
+  lineId: ID!
+  orderId: ID!
 }
 
 type ReservationGql {
@@ -516,6 +604,7 @@ enum Role {
   FRONT_DESK
   HOUSEKEEPING
   MANAGER
+  POS_OPERATOR
 }
 
 type RoomGql {
@@ -641,5 +730,10 @@ type UserType {
 
 input VoidLineGqlInput {
   folioLineId: ID!
+  reason: String!
+}
+
+input VoidOrderGqlInput {
+  orderId: ID!
   reason: String!
 }

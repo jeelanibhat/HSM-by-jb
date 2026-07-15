@@ -15,3 +15,4 @@ export * from '../../modules/reservations/infra/schema';
 export * from '../../modules/folio/infra/schema';
 export * from '../../modules/reporting/infra/schema';
 export * from '../../modules/housekeeping/infra/schema';
+export * from '../../modules/pos/infra/schema';

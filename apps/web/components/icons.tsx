@@ -49,6 +49,12 @@ export const Icon = {
       <path d="M6 20h7" stroke="currentColor" strokeLinecap="round" />
     </svg>
   ),
+  Receipt: (p: P) => (
+    <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z" stroke="currentColor" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  ),
   Moon: (p: P) => (
     <svg viewBox="0 0 24 24" fill="none" className={p.className ?? base} strokeWidth="1.7">
       <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" />

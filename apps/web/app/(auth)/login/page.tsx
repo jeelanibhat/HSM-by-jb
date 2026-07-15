@@ -14,6 +14,7 @@ const SEEDED = [
   { email: 'manager@hotelos.dev', role: 'Manager', note: 'Hotel Alpha' },
   { email: 'frontdesk@hotelos.dev', role: 'Front desk', note: 'Hotel Alpha' },
   { email: 'housekeeping@hotelos.dev', role: 'Housekeeping', note: 'Hotel Alpha' },
+  { email: 'pos@hotelos.dev', role: 'Waiter', note: 'the till only' },
   { email: 'auditor@hotelos.dev', role: 'Auditor', note: 'read-only' },
 ];
 

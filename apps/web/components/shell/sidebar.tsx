@@ -45,6 +45,14 @@ const SECTIONS: NavSection[] = [
       // No `roles`: housekeeping obviously needs it, and the front desk needs to
       // know which rooms are ready before they hand anyone a key.
       { href: '/housekeeping', label: 'Housekeeping', icon: Icon.Broom },
+      {
+        href: '/pos',
+        label: 'Point of sale',
+        icon: Icon.Receipt,
+        // A waiter is not a receptionist. Housekeeping does not sell food, and the
+        // auditor reads the books rather than working the till.
+        roles: ['ADMIN', 'MANAGER', 'FRONT_DESK', 'POS_OPERATOR'],
+      },
     ],
   },
   {

@@ -238,6 +238,49 @@ export type CompleteHousekeepingTaskInput = z.infer<typeof completeHousekeepingT
 export type InspectHousekeepingTaskInput = z.infer<typeof inspectHousekeepingTaskSchema>;
 export type CreateHousekeepingTaskInput = z.infer<typeof createHousekeepingTaskSchema>;
 
+// ── POS (Phase 2) ───────────────────────────────────────────────────────────
+
+export const openOrderSchema = z.object({
+  outletId: uuidSchema,
+  /** Free text — "Table 4", "Poolside", "Room service". */
+  tableRef: z.string().trim().max(40).optional(),
+});
+
+export const addOrderLineSchema = z.object({
+  orderId: uuidSchema,
+  menuItemId: uuidSchema,
+  /** A table of twelve is plausible; a hundred and twelve is a mis-key. */
+  quantity: z.number().int().min(1).max(99),
+  notes: z.string().trim().max(200).optional(),
+});
+
+export const removeOrderLineSchema = z.object({
+  orderId: uuidSchema,
+  lineId: uuidSchema,
+});
+
+/**
+ * Charge the order to the guest in a room.
+ *
+ * The waiter names the ROOM, never a folio. They should not know a folio exists, let
+ * alone which one belongs to whom — see the resolver.
+ */
+export const chargeOrderToRoomSchema = z.object({
+  orderId: uuidSchema,
+  roomId: uuidSchema,
+});
+
+export const voidOrderSchema = z.object({
+  orderId: uuidSchema,
+  reason: z.string().trim().min(1, 'Say why — a voided order with no reason is a missing till').max(500),
+});
+
+export type OpenOrderInput = z.infer<typeof openOrderSchema>;
+export type AddOrderLineInput = z.infer<typeof addOrderLineSchema>;
+export type RemoveOrderLineInput = z.infer<typeof removeOrderLineSchema>;
+export type ChargeOrderToRoomInput = z.infer<typeof chargeOrderToRoomSchema>;
+export type VoidOrderInput = z.infer<typeof voidOrderSchema>;
+
 export const folioLineTypeSchema = z.enum(FOLIO_LINE_TYPES);
 export const roleSchema = z.enum(ROLES);
 

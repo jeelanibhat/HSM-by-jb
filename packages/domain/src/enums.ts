@@ -72,8 +72,38 @@ export type FolioType = (typeof FOLIO_TYPES)[number];
 export const FOLIO_LINE_TYPES = ['CHARGE', 'PAYMENT', 'TAX', 'ADJUSTMENT'] as const;
 export type FolioLineType = (typeof FOLIO_LINE_TYPES)[number];
 
-export const ROLES = ['ADMIN', 'MANAGER', 'FRONT_DESK', 'HOUSEKEEPING', 'AUDITOR'] as const;
+/**
+ * POS_OPERATOR is a waiter, not a receptionist. They take orders and send them to a
+ * room — and that is ALL they can do. They cannot see the guest's bill, take a
+ * payment, or check anyone in. Giving a restaurant tablet the front desk's authority
+ * because both "touch the folio" is how a POS terminal becomes the softest way into
+ * a hotel's cashiering.
+ */
+export const ROLES = [
+  'ADMIN',
+  'MANAGER',
+  'FRONT_DESK',
+  'HOUSEKEEPING',
+  'POS_OPERATOR',
+  'AUDITOR',
+] as const;
 export type Role = (typeof ROLES)[number];
+
+/**
+ * An order's life.
+ *
+ *   OPEN    — being taken; lines can still be added and removed
+ *   CHARGED — on a guest's folio. IMMUTABLE from here: the guest has the bill.
+ *   VOID    — cancelled before it was charged. Nobody paid for anything.
+ *
+ * There is deliberately no edge out of CHARGED. Once a line is on a guest's bill,
+ * the correction is a reversing entry on the FOLIO (which the ledger already does,
+ * with parent_line_id), not a quiet edit to the order that produced it. An order that
+ * can be changed after it was billed is an order that can be changed after the guest
+ * has checked out.
+ */
+export const POS_ORDER_STATUSES = ['OPEN', 'CHARGED', 'VOID'] as const;
+export type PosOrderStatus = (typeof POS_ORDER_STATUSES)[number];
 
 export const NIGHT_AUDIT_STATUSES = ['RUNNING', 'COMPLETED', 'FAILED'] as const;
 export type NightAuditStatus = (typeof NIGHT_AUDIT_STATUSES)[number];

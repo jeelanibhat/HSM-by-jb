@@ -15,6 +15,7 @@ import { addDays, businessDate, ROLES } from '@hotelos/domain';
 import { roles, userPropertyRoles, users } from '../modules/identity/infra/schema';
 import { organizations, properties, taxes } from '../modules/property/infra/schema';
 import { ratePlans, ratePrices, rooms, roomTypes } from '../modules/inventory/infra/schema';
+import { menuItems, outlets } from '../modules/pos/infra/schema';
 
 const OWNER_URL =
   process.env['DATABASE_MIGRATION_URL'] ?? 'postgresql://hotelos:hotelos@localhost:5432/hotelos';
@@ -137,6 +138,11 @@ async function main(): Promise<void> {
         email: 'housekeeping@hotelos.dev',
         name: 'Hari Housekeeping',
         grants: [[SEED.alphaId, 'HOUSEKEEPING']],
+      },
+      {
+        email: 'pos@hotelos.dev',
+        name: 'Pooja Waiter',
+        grants: [[SEED.alphaId, 'POS_OPERATOR']],
       },
       {
         email: 'auditor@hotelos.dev',
@@ -269,13 +275,57 @@ async function main(): Promise<void> {
         target: [ratePrices.ratePlanId, ratePrices.roomTypeId, ratePrices.date],
       });
 
+    // ── POS: one outlet and a short menu (Phase 2) ──────────────────────────
+    //
+    // The charge code is the OUTLET's, not the dish's: a guest's bill reads
+    // "Restaurant — ₹1,025", and the revenue report groups by outlet.
+    const restaurantId = uuidv7();
+
+    await db
+      .insert(outlets)
+      .values({
+        id: restaurantId,
+        propertyId: SEED.alphaId,
+        code: 'RESTAURANT',
+        name: 'Saffron',
+        chargeCode: 'RESTAURANT',
+      })
+      .onConflictDoNothing({ target: [outlets.propertyId, outlets.code] });
+
+    const [restaurant] = await db
+      .select()
+      .from(outlets)
+      .where(and(eq(outlets.propertyId, SEED.alphaId), eq(outlets.code, 'RESTAURANT')));
+
+    const menu = [
+      { code: 'DAL', name: 'Dal Makhani', category: 'Mains', priceMinor: 45_000 },
+      { code: 'BIRYANI', name: 'Hyderabadi Biryani', category: 'Mains', priceMinor: 62_500 },
+      { code: 'PANEER', name: 'Paneer Tikka', category: 'Starters', priceMinor: 38_000 },
+      { code: 'NAAN', name: 'Butter Naan', category: 'Breads', priceMinor: 9_000 },
+      { code: 'GULAB', name: 'Gulab Jamun', category: 'Desserts', priceMinor: 18_000 },
+      { code: 'LASSI', name: 'Sweet Lassi', category: 'Drinks', priceMinor: 15_000 },
+    ];
+
+    await db
+      .insert(menuItems)
+      .values(
+        menu.map((m) => ({
+          id: uuidv7(),
+          propertyId: SEED.alphaId,
+          outletId: restaurant!.id,
+          ...m,
+        })),
+      )
+      .onConflictDoNothing({ target: [menuItems.outletId, menuItems.code] });
+
     console.warn('Seed complete.');
     console.warn('  Inventory  : Hotel Alpha — 3 room types, 30 rooms, BAR plan, 90 days priced');
     console.warn('               Hotel Beta  — deliberately empty (tenancy canary)');
+    console.warn('  POS        : Saffron (restaurant), 6 menu items');
     console.warn(`  Properties : Hotel Alpha (${SEED.alphaId})`);
     console.warn(`               Hotel Beta  (${SEED.betaId})`);
     console.warn(`  Password   : ${SEED.password}`);
-    console.warn('  Users      : admin@ manager@ frontdesk@ housekeeping@ auditor@ (Alpha)');
+    console.warn('  Users      : admin@ manager@ frontdesk@ housekeeping@ pos@ auditor@ (Alpha)');
     console.warn('               beta.frontdesk@ (Beta only)');
   } finally {
     await client.end();
